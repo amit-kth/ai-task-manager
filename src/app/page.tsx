@@ -1,103 +1,390 @@
-import Image from "next/image";
+"use client"
+
+import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { PlusCircle, ClipboardCopy, LogOut, Sparkles } from "lucide-react"
+import TaskItem from "@/components/task-item"
+import type { Task, SubTask } from "@/lib/types"
+import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
+import { logOut } from "@/components/firebase/firebase"
+
+// Add these imports at the top
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner"
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const { user } = useAuth()
+  const db = getFirestore()
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  // Replace localStorage useEffect with Firestore fetch
+  useEffect(() => {
+    const fetchTasks = async () => {
+      if (!user) return;
+      try {
+        const tasksDoc = await getDoc(doc(db, 'tasks', user.uid));
+        if (tasksDoc.exists()) {
+          setTasks(tasksDoc.data().taskList || []);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        toast.error("Failed to fetch tasks");
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, [user, db]);
+
+  // Replace localStorage update with Firestore update
+  useEffect(() => {
+    const updateFirestore = async () => {
+      if (!user || isLoading) return;
+      try {
+        await setDoc(doc(db, 'tasks', user.uid), {
+          taskList: tasks
+        });
+      } catch (error) {
+        console.error('Error updating tasks:', error);
+        toast.error("Failed to save tasks")
+      }
+    };
+
+    updateFirestore();
+  }, [tasks, user, isLoading, db]);
+
+  // Update task status change handler
+  const handleTaskStatusChange = async (taskId: string, newStatus: "pending" | "running" | "completed") => {
+    setTasks((prevTasks) => {
+      const updatedTasks = prevTasks.map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      );
+      return updatedTasks;
+    });
+  };
+
+  // Update subtask toggle handler
+  const handleSubtaskToggle = async (taskId: string, subtaskId: string) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) => {
+        if (task.id === taskId) {
+          const updatedSubtasks = task.subtasks.map((subtask) =>
+            subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask,
+          );
+          const allCompleted = updatedSubtasks.every((subtask) => subtask.completed);
+          return {
+            ...task,
+            subtasks: updatedSubtasks,
+            status: allCompleted ? "completed" : task.status,
+          };
+        }
+        return task;
+      }),
+    );
+  };
+
+  const handleAddSubtask = (taskId: string, newSubtask: SubTask) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task:Task) => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            subtasks: [...task.subtasks, newSubtask],
+          }
+        }
+        return task
+      }),
+    )
+  }
+
+  const moveTaskUp = (taskId: string, status: "pending" | "running" | "completed") => {
+    setTasks((prevTasks) => {
+      const taskIndex = prevTasks.findIndex((task) => task.id === taskId)
+      if (taskIndex <= 0) return prevTasks // Already at the top
+
+      // Find the previous task with the same status
+      let prevTaskIndex = taskIndex - 1
+      while (prevTaskIndex >= 0 && prevTasks[prevTaskIndex].status !== status) {
+        prevTaskIndex--
+      }
+
+      if (prevTaskIndex < 0) return prevTasks // No previous task with same status
+
+      const newTasks = [...prevTasks]
+      const temp = newTasks[taskIndex]
+      newTasks[taskIndex] = newTasks[prevTaskIndex]
+      newTasks[prevTaskIndex] = temp
+
+      toast.success("Task moved up", {
+        description: "Task priority has been updated"
+      })
+
+      return newTasks
+    })
+  }
+
+  const moveTaskDown = (taskId: string, status: "pending" | "running" | "completed") => {
+    setTasks((prevTasks) => {
+      const taskIndex = prevTasks.findIndex((task) => task.id === taskId)
+      if (taskIndex === -1 || taskIndex === prevTasks.length - 1) return prevTasks // Not found or already at bottom
+
+      // Find the next task with the same status
+      let nextTaskIndex = taskIndex + 1
+      while (nextTaskIndex < prevTasks.length && prevTasks[nextTaskIndex].status !== status) {
+        nextTaskIndex++
+      }
+
+      if (nextTaskIndex >= prevTasks.length) return prevTasks // No next task with same status
+
+      const newTasks = [...prevTasks]
+      const temp = newTasks[taskIndex]
+      newTasks[taskIndex] = newTasks[nextTaskIndex]
+      newTasks[nextTaskIndex] = temp
+
+      toast.success("Task moved down", {
+        description: "Task priority has been updated"
+      })
+
+      return newTasks
+    })
+  }
+
+  const pendingTasks = tasks.filter((task) => task.status === "pending")
+  const runningTasks = tasks.filter((task) => task.status === "running")
+  const completedTasks = tasks.filter((task) => task.status === "completed")
+
+
+  const handleDeleteSubtask = (taskId: string, subtaskId: string) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            subtasks: task.subtasks.filter((subtask) => subtask.id !== subtaskId),
+          }
+        }
+        return task
+      }),
+    )
+
+    toast.success("Subtask deleted", {
+      description: "The subtask has been removed successfully"
+    })
+  }
+
+  const { userData } = useAuth()
+
+  const handleLogout = async () => {
+    try {
+      await logOut()
+      router.push('/login')
+      toast.success("Logged out successfully", {
+        description: "You have been logged out of your account"
+      })
+    } catch (error) {
+      toast.error("Error", {
+        description: "Failed to log out"
+      })
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto py-8 px-4 max-w-5xl">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex justify-between items-center mb-8"
+        >
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {userData?.name}'s Task Manager
+            </h1>
+            <p className="text-gray-500 mt-1">
+              {userData?.email}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/todo-list")}
+              className="flex items-center gap-2 shadow-sm hover:shadow transition-all"
+            >
+              <ClipboardCopy className="h-4 w-4" />
+              Create Todo List
+            </Button>
+            <Button
+              onClick={() => router.push("/add-task")}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Add New Task
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/ai-assistant")}
+              className="flex items-center gap-2 shadow-sm hover:shadow transition-all"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI Assistant
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="flex items-center justify-center hover:bg-red-200 bg-red-100 aspect-square"
+            >
+              <LogOut className="h-4 w-4 text-red-600" />
+            </Button>
+          </div>
+        </motion.div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {tasks.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100"
+              >
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                  <PlusCircle className="h-10 w-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-medium text-gray-700">No tasks yet</h3>
+                <p className="text-gray-500 mt-2 max-w-md mx-auto">
+                  Add your first task to start organizing your work efficiently
+                </p>
+                <Button
+                  onClick={() => router.push("/add-task")}
+                  className="mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
+                >
+                  Add Your First Task
+                </Button>
+              </motion.div>
+            ) : (
+              <div className="space-y-6">
+                {runningTasks.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.1 }}
+                    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+                  >
+                    <div className="flex items-center mb-4">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                      <h2 className="text-lg font-semibold text-gray-800">Running Tasks</h2>
+                      <div className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                        {runningTasks.length}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {runningTasks.map((task, index) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          onStatusChange={handleTaskStatusChange}
+                          onSubtaskToggle={handleSubtaskToggle}
+                          onAddSubtask={handleAddSubtask}
+                          onDeleteSubtask={handleDeleteSubtask}
+                          statusColor="bg-blue-500"
+                          statusBg="bg-blue-50"
+                          index={index}
+                          onMoveUp={() => moveTaskUp(task.id, "running")}
+                          onMoveDown={() => moveTaskDown(task.id, "running")}
+                          isFirst={index === 0}
+                          isLast={index === runningTasks.length - 1}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {pendingTasks.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+                  >
+                    <div className="flex items-center mb-4">
+                      <div className="w-3 h-3 rounded-full bg-amber-400 mr-2"></div>
+                      <h2 className="text-lg font-semibold text-gray-800">Pending Tasks</h2>
+                      <div className="ml-2 px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                        {pendingTasks.length}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {pendingTasks.map((task, index) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          onStatusChange={handleTaskStatusChange}
+                          onSubtaskToggle={handleSubtaskToggle}
+                          onAddSubtask={handleAddSubtask}
+                          onDeleteSubtask={handleDeleteSubtask} // Add this line
+                          statusColor="bg-amber-400"
+                          statusBg="bg-amber-50"
+                          index={index}
+                          onMoveUp={() => moveTaskUp(task.id, "pending")}
+                          onMoveDown={() => moveTaskDown(task.id, "pending")}
+                          isFirst={index === 0}
+                          isLast={index === pendingTasks.length - 1}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {completedTasks.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.2 }}
+                    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+                  >
+                    <div className="flex items-center mb-4">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                      <h2 className="text-lg font-semibold text-gray-800">Completed Tasks</h2>
+                      <div className="ml-2 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                        {completedTasks.length}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {completedTasks.map((task, index) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          onStatusChange={handleTaskStatusChange}
+                          onDeleteSubtask={handleDeleteSubtask}
+                          onSubtaskToggle={handleSubtaskToggle}
+                          statusColor="bg-green-500"
+                          statusBg="bg-green-50"
+                          index={index}
+                          disablePriority={true}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }
+
