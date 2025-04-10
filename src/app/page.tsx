@@ -90,7 +90,7 @@ export default function Home() {
 
   const handleAddSubtask = (taskId: string, newSubtask: SubTask) => {
     setTasks((prevTasks) =>
-      prevTasks.map((task:Task) => {
+      prevTasks.map((task: Task) => {
         if (task.id === taskId) {
           return {
             ...task,
@@ -188,7 +188,7 @@ export default function Home() {
       })
     } catch (error) {
       toast.error("Error", {
-        description: "Failed to log out"
+        description: `Failed to log out : ${error}`,
       })
     }
   }
@@ -204,7 +204,7 @@ export default function Home() {
         >
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {userData?.name}'s Task Manager
+              {userData?.name + `'s Task Manager`}
             </h1>
             <p className="text-gray-500 mt-1">
               {userData?.email}

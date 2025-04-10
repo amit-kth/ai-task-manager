@@ -15,8 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { motion } from "framer-motion"
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore"
 import { useAuth } from "@/context/AuthContext"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
 export default function AddTaskPage() {

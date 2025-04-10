@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDate } from "@/lib/utils"
 import { saveAs } from 'file-saver';
-import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, ISectionOptions, Packer, ImageRun } from "docx"
+import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, ImageRun } from "docx"
 import { COMPANY_LOGO } from "@/lib/variables"
 import { useAuth } from "@/context/AuthContext"
 import { doc, getDoc } from "firebase/firestore"
@@ -51,7 +51,7 @@ export default function TodoListPage() {
     }
 
     fetchTasks()
-  }, [user, db, toast, router])
+  }, [user, router])
 
   useEffect(() => {
     const storedTasks = localStorage.getItem("tasks")

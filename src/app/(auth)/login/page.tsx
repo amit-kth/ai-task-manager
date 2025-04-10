@@ -43,10 +43,11 @@ export default function Login() {
       toast.success("Login successful", {
         description: "Welcome back to Task Manager!"
       })
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      setError(errorMessage)
       toast.error("Login failed", {
-        description: error.message
+        description: errorMessage
       })
     } finally {
       setIsLoading(false)
@@ -142,7 +143,7 @@ export default function Login() {
           </CardFooter>
           <div className="p-6 pt-0 text-center">
             <p className="text-sm text-gray-500">
-              Don't have an account?{" "}
+              Do not have an account?{" "}
               <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-800">
                 Sign up
               </Button>

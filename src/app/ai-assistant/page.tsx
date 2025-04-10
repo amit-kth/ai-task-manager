@@ -84,10 +84,12 @@ export default function AIAssistantPage() {
 
     const handleAddToFirebase = async (task: Task) => {
         try {
+            console.log(task);
+
             // await addTaskToFirebase(task);
             toast.success("Task added successfully!")
         } catch (error) {
-            toast.error("Failed to add task")
+            toast.error("Failed to add task" + `${error}`)
         }
     }
 
@@ -96,7 +98,7 @@ export default function AIAssistantPage() {
         console.log("Edit task:", task)
     }
 
-    const handleDeleteTask = (taskIndex: number) => {
+    const handleDeleteTask = () => {
         // Implementation preserved
     }
 
@@ -107,7 +109,7 @@ export default function AIAssistantPage() {
             }
             toast.success("All tasks added successfully!")
         } catch (error) {
-            toast.error("Failed to add tasks")
+            toast.error("Failed to add tasks" + " " + `${error}`)
         }
     }
 
