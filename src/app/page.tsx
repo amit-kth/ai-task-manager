@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, ClipboardCopy, LogOut, Sparkles } from "lucide-react"
+import { PlusCircle } from "lucide-react"
 import TaskItem from "@/components/task-item"
 import type { Task, SubTask } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { logOut } from "@/components/firebase/firebase"
 
 // Add these imports at the top
 import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner"
+import Header from "@/components/header"
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -177,73 +177,11 @@ export default function Home() {
     })
   }
 
-  const { userData } = useAuth()
-
-  const handleLogout = async () => {
-    try {
-      await logOut()
-      router.push('/login')
-      toast.success("Logged out successfully", {
-        description: "You have been logged out of your account"
-      })
-    } catch (error) {
-      toast.error("Error", {
-        description: `Failed to log out : ${error}`,
-      })
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto py-8 px-4 max-w-5xl">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex justify-between items-center mb-8"
-        >
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {userData?.name + `'s Task Manager`}
-            </h1>
-            <p className="text-gray-500 mt-1">
-              {userData?.email}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/todo-list")}
-              className="flex items-center gap-2 shadow-sm hover:shadow transition-all"
-            >
-              <ClipboardCopy className="h-4 w-4" />
-              Create Todo List
-            </Button>
-            <Button
-              onClick={() => router.push("/add-task")}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
-            >
-              <PlusCircle className="h-4 w-4" />
-              Add New Task
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => router.push("/ai-assistant")}
-              className="flex items-center gap-2 shadow-sm hover:shadow transition-all"
-            >
-              <Sparkles className="h-4 w-4" />
-              AI Assistant
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="flex items-center justify-center hover:bg-red-200 bg-red-100 aspect-square"
-            >
-              <LogOut className="h-4 w-4 text-red-600" />
-            </Button>
-          </div>
-        </motion.div>
-
+      <main className="container mx-auto py-4 sm:py-8 px-3 sm:px-4 max-w-5xl">
+        <Header />
+        
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
@@ -278,7 +216,7 @@ export default function Home() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.1 }}
-                    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+                    className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100"
                   >
                     <div className="flex items-center mb-4">
                       <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>

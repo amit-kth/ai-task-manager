@@ -112,29 +112,29 @@ export default function TaskItem({
       transition={{ duration: 0.2, delay: index * 0.05 }}
       className={`rounded-lg overflow-hidden border shadow-sm hover:shadow transition-all ${expanded ? "border-gray-300" : "border-gray-200"}`}
     >
-      <div className={`flex items-center p-4 ${statusBg}`}>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h3 className="font-medium text-gray-800">{task.title}</h3>
+      <div className={`flex flex-col sm:flex-row items-start sm:items-center p-3 sm:p-4 ${statusBg}`}>
+        <div className="flex-1 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h3 className="font-medium text-gray-800 text-sm sm:text-base">{task.title}</h3>
             <div className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(task.status)}`}>
               {getStatusLabel(task.status)}
             </div>
           </div>
 
-          <div className="mt-2">
+          <div className="mt-2 w-full">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
               <span>Progress</span>
               <span>
                 {completedSubtasks} of {totalSubtasks} subtasks
               </span>
             </div>
-            <Progress value={progress} className="h-1.5" indicatorClassName={statusColor.replace("bg-", "bg-")}/>
+            <Progress value={progress} className="h-1.5" indicatorClassName={statusColor.replace("bg-", "bg-")} />
           </div>
         </div>
 
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4 w-full sm:w-auto">
           {!disablePriority && (
-            <div className="flex flex-col gap-1 mr-2">
+            <div className="flex sm:flex-col gap-1 mr-2">
               <Button
                 variant="ghost"
                 size="icon"
@@ -160,7 +160,7 @@ export default function TaskItem({
             value={task.status}
             onValueChange={(value) => onStatusChange(task.id, value as "pending" | "running" | "completed")}
           >
-            <SelectTrigger className="w-[130px] h-8 text-sm">
+            <SelectTrigger className="w-[110px] sm:w-[130px] h-8 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -170,7 +170,7 @@ export default function TaskItem({
             </SelectContent>
           </Select>
 
-          <Button variant="ghost" size="sm" onClick={toggleExpansion} className="ml-2 h-8 w-8 p-0">
+          <Button variant="ghost" size="sm" onClick={toggleExpansion} className="ml-auto sm:ml-2 h-8 w-8 p-0">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </div>
@@ -185,7 +185,7 @@ export default function TaskItem({
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="p-4 pt-0 border-t">
+            <div className="p-3 sm:p-4 pt-0 border-t">
               <div className="space-y-1 pt-3">
                 {task.subtasks.map((subtask) => (
                   <motion.div
@@ -203,12 +203,12 @@ export default function TaskItem({
                     />
                     <label
                       htmlFor={`${task.id}-${subtask.id}`}
-                      className={`flex-1 cursor-pointer text-sm ${subtask.completed ? "line-through text-gray-400" : "text-gray-700"
-                        }`}
+                      className={`flex-1 cursor-pointer text-xs sm:text-sm ${
+                        subtask.completed ? "line-through text-gray-400" : "text-gray-700"
+                      }`}
                     >
                       {subtask.title}
                     </label>
-
                     <Button
                       variant="ghost"
                       size="sm"
@@ -231,14 +231,12 @@ export default function TaskItem({
                             value={newSubtaskTitle}
                             onChange={(e) => setNewSubtaskTitle(e.target.value)}
                             className="flex-1 text-sm h-8 border-gray-200 focus:border-blue-300"
+                            onKeyDownCapture={(e) => {
+                              if (e.key === "Enter") {
+                                handleAddSubtask()
+                              }
+                            }}
                           />
-                          <Button
-                            size="sm"
-                            onClick={handleAddSubtask}
-                            className="h-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                          >
-                            Add
-                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

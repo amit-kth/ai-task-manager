@@ -10,7 +10,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, LogIn, Lock, Mail } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 // Add this import at the top with other imports
@@ -62,7 +62,7 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="w-full shadow-lg border-gray-100 overflow-hidden">
+        <Card className="w-full shadow-lg border-gray-100 overflow-hidden pt-0">
           <div className="h-2 bg-gradient-to-r from-blue-600 to-purple-600"></div>
           <CardHeader className="space-y-1 text-center">
             <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-gradient-to-r from-blue-600/10 to-purple-600/10 flex items-center justify-center">
@@ -103,9 +103,9 @@ export default function Login() {
                   <Label htmlFor="password" className="text-gray-700">
                     Password
                   </Label>
-                  <Button variant="link" className="p-0 h-auto text-xs text-blue-600 hover:text-blue-800">
+                  {/* <Button variant="link" className="p-0 h-auto text-xs text-blue-600 hover:text-blue-800">
                     Forgot password?
-                  </Button>
+                  </Button> */}
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -120,35 +120,33 @@ export default function Login() {
                   />
                 </div>
               </div>
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign in
+                  </div>
+                )}
+              </Button>
             </form>
           </CardContent>
-          <CardFooter>
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
-            >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing in...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Sign in
-                </div>
-              )}
-            </Button>
-          </CardFooter>
-          <div className="p-6 pt-0 text-center">
+          {/* <div className="p-6 pt-0 text-center">
             <p className="text-sm text-gray-500">
               Do not have an account?{" "}
               <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-800">
                 Sign up
               </Button>
             </p>
-          </div>
+          </div> */}
         </Card>
       </motion.div>
     </div>
