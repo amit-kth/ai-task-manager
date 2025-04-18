@@ -177,11 +177,33 @@ export default function Home() {
     })
   }
 
+
+  // function for deleting the complete task
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+
+      // Update Firestore
+      if (user) {
+        const updatedTasks = tasks.filter((task) => task.id !== taskId);
+        await setDoc(doc(db, 'tasks', user.uid), {
+          taskList: updatedTasks
+        });
+        toast.success("Task deleted", {
+          description: "Task and all its subtasks have been deleted successfully"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error("Failed to delete task");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto py-4 sm:py-8 px-3 sm:px-4 max-w-5xl">
         <Header />
-        
+
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
@@ -235,6 +257,7 @@ export default function Home() {
                           onSubtaskToggle={handleSubtaskToggle}
                           onAddSubtask={handleAddSubtask}
                           onDeleteSubtask={handleDeleteSubtask}
+                          onDeleteTask={handleDeleteTask}
                           statusColor="bg-blue-500"
                           statusBg="bg-blue-50"
                           index={index}
@@ -271,7 +294,8 @@ export default function Home() {
                           onStatusChange={handleTaskStatusChange}
                           onSubtaskToggle={handleSubtaskToggle}
                           onAddSubtask={handleAddSubtask}
-                          onDeleteSubtask={handleDeleteSubtask} // Add this line
+                          onDeleteSubtask={handleDeleteSubtask}
+                          onDeleteTask={handleDeleteTask}
                           statusColor="bg-amber-400"
                           statusBg="bg-amber-50"
                           index={index}
@@ -308,6 +332,7 @@ export default function Home() {
                           onStatusChange={handleTaskStatusChange}
                           onDeleteSubtask={handleDeleteSubtask}
                           onSubtaskToggle={handleSubtaskToggle}
+                          onDeleteTask={handleDeleteTask}
                           statusColor="bg-green-500"
                           statusBg="bg-green-50"
                           index={index}

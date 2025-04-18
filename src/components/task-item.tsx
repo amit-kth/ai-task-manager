@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { v4 as uuidv4 } from "uuid"
 import { toast } from "sonner"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+
 
 interface TaskItemProps {
   task: Task
@@ -18,6 +20,7 @@ interface TaskItemProps {
   onSubtaskToggle: (taskId: string, subtaskId: string) => void
   onAddSubtask?: (taskId: string, subtask: SubTask) => void
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
   statusColor: string
   statusBg: string
   index: number
@@ -27,13 +30,14 @@ interface TaskItemProps {
   isFirst?: boolean
   isLast?: boolean
 }
-
+// In the component props, add onDeleteTask
 export default function TaskItem({
   task,
   onStatusChange,
   onSubtaskToggle,
   onAddSubtask,
   onDeleteSubtask,
+  onDeleteTask,
   statusColor,
   statusBg,
   index,
@@ -156,6 +160,36 @@ export default function TaskItem({
             </div>
           )}
 
+          {/* confirmation alert dialog */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Deleting "{task.title}" will also delete all of its subtasks. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDeleteTask(task.id)}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Select
             value={task.status}
             onValueChange={(value) => onStatusChange(task.id, value as "pending" | "running" | "completed")}
@@ -203,9 +237,8 @@ export default function TaskItem({
                     />
                     <label
                       htmlFor={`${task.id}-${subtask.id}`}
-                      className={`flex-1 cursor-pointer text-xs sm:text-sm ${
-                        subtask.completed ? "line-through text-gray-400" : "text-gray-700"
-                      }`}
+                      className={`flex-1 cursor-pointer text-xs sm:text-sm ${subtask.completed ? "line-through text-gray-400" : "text-gray-700"
+                        }`}
                     >
                       {subtask.title}
                     </label>

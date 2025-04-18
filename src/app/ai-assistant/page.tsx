@@ -14,6 +14,15 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { ChatMessage, Task, TaskResponse } from "@/lib/types"
 import { AiDetectedTasksList } from "./components/ai-detected-tasklist"
+import { useAuth } from "@/context/AuthContext"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/components/firebase/firebase"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 
 export default function AIAssistantPage() {
     const [input, setInput] = useState("")
@@ -21,7 +30,12 @@ export default function AIAssistantPage() {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
     const [isTyping, setIsTyping] = useState(false)
     const chatContainerRef = useRef<HTMLDivElement>(null)
+    const [tasks, setTasks] = useState<Task[]>([])
+    const [mentionPopoverOpen, setMentionPopoverOpen] = useState(false)
+    const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 })
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
     const router = useRouter()
+    const { user } = useAuth()
 
     // Auto-scroll to bottom when chat history updates
     useEffect(() => {
@@ -110,6 +124,54 @@ export default function AIAssistantPage() {
             toast.success("All tasks added successfully!")
         } catch (error) {
             toast.error("Failed to add tasks" + " " + `${error}`)
+        }
+    }
+
+    //fetching tasks
+    useEffect(() => {
+        const fetchTasks = async () => {
+            if (!user) return;
+            try {
+                const tasksDoc = await getDoc(doc(db, 'tasks', user.uid));
+                if (tasksDoc.exists()) {
+                    setTasks(tasksDoc.data().taskList || []);
+                }
+            } catch (error) { toast.error("Failed to fetch tasks") }
+        };
+        fetchTasks();
+    }, [user, db]);
+
+
+    // Add this function to handle task selection
+    const handleTaskSelect = (task: Task) => {
+        setMentionPopoverOpen(false)
+        const taskMention = `@${task.title}`
+        setInput((prev) => {
+            const beforeAt = prev.substring(0, prev.lastIndexOf('@'))
+            return `${beforeAt}${taskMention} `
+        })
+        // Focus back on textarea
+        textareaRef.current?.focus()
+    }
+
+    // Modify the textarea onChange handler
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value
+        setInput(value)
+
+        // Check for @ symbol
+        if (value.endsWith('@')) {
+            const rect = e.target.getBoundingClientRect()
+            const lineHeight = parseInt(getComputedStyle(e.target).lineHeight)
+            const lines = value.split('\n').length
+            console.log("@ detected");
+
+
+            setMentionPosition({
+                top: rect.top + (lines * lineHeight),
+                left: rect.left
+            })
+            setMentionPopoverOpen(true)
         }
     }
 
@@ -261,13 +323,49 @@ export default function AIAssistantPage() {
 
                                 <div className="p-4 border-t border-gray-100 bg-white">
                                     <div className="flex gap-3">
-                                        <Textarea
-                                            placeholder="Describe your tasks or ask for help..."
-                                            value={input}
-                                            onChange={(e) => setInput(e.target.value)}
-                                            onKeyDown={handleKeyDown}
-                                            className="flex-1 min-h-[60px] max-h-[120px] border-gray-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all resize-none"
-                                        />
+                                        <div className="relative flex-1">
+                                            <Textarea
+                                                ref={textareaRef}
+                                                placeholder="Describe your tasks or ask for help... (Type @ to mention a task)"
+                                                value={input}
+                                                onChange={handleInputChange}
+                                                onKeyDownCapture={handleKeyDown}
+                                                className="flex-1 min-h-[60px] max-h-[120px] border-gray-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all resize-none"
+                                            />
+                                            <Popover open={mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <div className="w-0 h-0" />
+                                                </PopoverTrigger>
+                                                <PopoverContent
+                                                    className="w-[300px] p-0"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: `${mentionPosition.top}px`,
+                                                        left: `${mentionPosition.left}px`,
+                                                    }}
+                                                >
+                                                    <Command>
+                                                        <CommandInput placeholder="Search tasks..." />
+                                                        <CommandEmpty>No tasks found.</CommandEmpty>
+                                                        <CommandGroup heading="Your Tasks">
+                                                            {tasks.map((task) => (
+                                                                <CommandItem
+                                                                    key={task.id}
+                                                                    onSelect={() => handleTaskSelect(task)}
+                                                                    className="flex items-center gap-2 cursor-pointer"
+                                                                >
+                                                                    <div className={`w-2 h-2 rounded-full ${task.status === 'completed' ? 'bg-green-500' :
+                                                                        task.status === 'running' ? 'bg-blue-500' :
+                                                                            'bg-amber-500'
+                                                                        }`} />
+                                                                    <span>{task.title}</span>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                         <motion.div whileTap={{ scale: 0.95 }}>
                                             <Button
                                                 onClick={handleSubmit}
@@ -279,7 +377,7 @@ export default function AIAssistantPage() {
                                         </motion.div>
                                     </div>
                                     <div className="mt-2 text-xs text-gray-400 text-center">
-                                        Press Enter to send, Shift+Enter for new line
+                                        Press Enter to send, Shift+Enter for new line, @ to mention a task
                                     </div>
                                 </div>
                             </div>

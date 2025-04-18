@@ -304,8 +304,9 @@ export default function TodoListPage() {
                         </div>
 
                         <div className="mt-3 pl-8 space-y-2">
-                          {task.subtasks.map((subtask) => (
-                            <motion.div
+                          {task.subtasks.map((subtask) => {
+                            if (subtask.completed) return null // not returning completed tasks.
+                            return <motion.div
                               key={subtask.id}
                               initial={{ opacity: 0, x: -5 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -322,7 +323,7 @@ export default function TodoListPage() {
                                 {subtask.title}
                               </label>
                             </motion.div>
-                          ))}
+                          })}
                         </div>
                       </motion.div>
                     ))}
