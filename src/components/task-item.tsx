@@ -175,7 +175,7 @@ export default function TaskItem({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Task</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Deleting "{task.title}" will also delete all of its subtasks. This action cannot be undone.
+                  Deleting <b>{task.title}</b> will also delete all of its subtasks. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

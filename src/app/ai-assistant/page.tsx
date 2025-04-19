@@ -136,7 +136,7 @@ export default function AIAssistantPage() {
                 if (tasksDoc.exists()) {
                     setTasks(tasksDoc.data().taskList || []);
                 }
-            } catch (error) { toast.error("Failed to fetch tasks") }
+            } catch (error) { toast.error(`${error}`) }
         };
         fetchTasks();
     }, [user, db]);
