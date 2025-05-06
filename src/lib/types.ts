@@ -15,6 +15,7 @@ export interface Task {
 export interface TaskResponse {
     isTask: boolean;
     task: Task[],
+    actions: unknown;
     message: string;
 }
 
@@ -22,6 +23,7 @@ export interface ChatMessage {
     role: "user" | "assistant";
     content: string;
     parsedResponse: TaskResponse | string;
+    mentionedTasks?: Task[];
 }
 
 

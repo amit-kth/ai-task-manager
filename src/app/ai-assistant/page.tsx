@@ -44,36 +44,76 @@ export default function AIAssistantPage() {
         }
     }, [chatHistory])
 
+    // Add this function to extract mentioned tasks
+    const extractMentionedTasks = (input: string): Task[] => {
+        const mentionedTasks: Task[] = [];
+        const mentions = input.match(/@([^@\s]+)/g) || [];
+        
+        mentions.forEach(mention => {
+            const taskTitle = mention.slice(1); // Remove @ symbol
+            const task = tasks.find(t => t.title === taskTitle);
+            if (task) {
+                mentionedTasks.push(task);
+            }
+        });
+        
+        return mentionedTasks;
+    }
+    
+    // Modify handleSubmit to include task details
     const handleSubmit = async () => {
         if (!input.trim()) return
-
+    
         try {
             setIsProcessing(true)
-            const userMessage: ChatMessage = { role: "user", content: input, parsedResponse: input }
+            const mentionedTasks = extractMentionedTasks(input);
+            
+            // Create context with mentioned task details
+            let aiContext = input;
+            if (mentionedTasks.length > 0) {
+                aiContext += "\n\nReferenced Tasks:\n" + mentionedTasks.map(task => 
+                    JSON.stringify({
+                        id: task.id,
+                        title: task.title,
+                        status: task.status,
+                        subtasks: task.subtasks
+                    }, null, 2)
+                ).join("\n");
+            }
+    
+            const userMessage: ChatMessage = { 
+                role: "user", 
+                content: input,
+                parsedResponse: input,
+                mentionedTasks // Add this to track mentioned tasks
+            }
             setChatHistory((prev) => [...prev, userMessage])
             setInput("")
-
-            // Simulate typing indicator
+    
             setIsTyping(true)
-
-            // Complete response coming from the ai model
-            const result = await geminiModel.generateContent(input)
-
-            // Remove typing indicator
+    
+            // Send the context-enriched prompt to AI
+            const result = await geminiModel.generateContent(aiContext)
             setIsTyping(false)
-
+    
             try {
+                // Parse AI response and execute actions
+                const aiResponse = result as TaskResponse;
+                if (aiResponse.actions) {
+                    // await handleAIActions(aiResponse.actions, mentionedTasks);
+                }
+    
                 const aiMessage: ChatMessage = {
                     role: "assistant",
                     content: result.message,
-                    parsedResponse: result as TaskResponse,
+                    parsedResponse: aiResponse,
+                    
                 }
                 setChatHistory((prev) => [...prev, aiMessage])
-            } catch {
-                // Fallback for non-JSON responses
+            } catch (error) {
                 const aiMessage: ChatMessage = {
                     role: "assistant",
-                    content: result.message,
+                    content: `${result.message} & ${error}`,
                     parsedResponse: "Failed" as string,
                 }
                 setChatHistory((prev) => [...prev, aiMessage])
@@ -168,12 +208,15 @@ export default function AIAssistantPage() {
 
 
             setMentionPosition({
-                top: rect.top + (lines * lineHeight),
+                top: -(rect.top + (lines * lineHeight)),
                 left: rect.left
             })
             setMentionPopoverOpen(true)
         }
     }
+
+    console.log(mentionPopoverOpen, mentionPosition);
+
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -388,3 +431,108 @@ export default function AIAssistantPage() {
         </div>
     )
 }
+
+// Add function to handle AI actions
+// const handleAIActions = async (actions: unknown, mentionedTasks: Task[]) => {
+//     for (const action of actions) {
+//         switch (action.type) {
+//             case 'ADD_SUBTASK':
+//                 // await handleAddSubtask(action.taskId, action.subtask);
+//                 break;
+//             case 'DELETE_TASK':
+//                 // await handleDeleteTask(action.taskId);
+//                 break;
+//             case 'MERGE_TASKS':
+//                 // await handleMergeTasks(action.taskIds, action.newTask);
+//                 break;
+//             case 'MOVE_SUBTASK':
+//                 // await handleMoveSubtask(action.fromTaskId, action.toTaskId, action.subtaskId);
+//                 break;
+//             case 'UPDATE_TASK':
+//                 // await handleUpdateTask(action.taskId, action.updates);
+//                 break;
+//         }
+//     }
+// }
+
+// Implement the action handlers
+// const handleMergeTasks = async (taskIds: string[], newTask: Task) => {
+//     try {
+//         const mergedSubtasks = taskIds
+//             .map(id => tasks.find(t => t.id === id))
+//             .flatMap(task => task?.subtasks || []);
+
+//         const mergedTask = {
+//             ...newTask,
+//             subtasks: mergedSubtasks,
+//         };
+
+//         // Delete old tasks and add merged task
+//         const updatedTasks = tasks
+//             .filter(task => !taskIds.includes(task.id))
+//             .concat(mergedTask);
+
+//         if (user) {
+//             await setDoc(doc(db, 'tasks', user.uid), {
+//                 taskList: updatedTasks
+//             });
+//             setTasks(updatedTasks);
+//             toast.success("Tasks merged successfully");
+//         }
+//     } catch (error) {
+//         toast.error("Failed to merge tasks");
+//     }
+// }
+
+// const handleMoveSubtask = async (fromTaskId: string, toTaskId: string, subtaskId: string) => {
+//     try {
+//         const updatedTasks = tasks.map(task => {
+//             if (task.id === fromTaskId) {
+//                 return {
+//                     ...task,
+//                     subtasks: task.subtasks.filter(st => st.id !== subtaskId)
+//                 };
+//             }
+//             if (task.id === toTaskId) {
+//                 const subtask = tasks
+//                     .find(t => t.id === fromTaskId)
+//                     ?.subtasks.find(st => st.id === subtaskId);
+//                 if (subtask) {
+//                     return {
+//                         ...task,
+//                         subtasks: [...task.subtasks, subtask]
+//                     };
+//                 }
+//             }
+//             return task;
+//         });
+
+//         if (user) {
+//             await setDoc(doc(db, 'tasks', user.uid), {
+//                 taskList: updatedTasks
+//             });
+//             setTasks(updatedTasks);
+//             toast.success("Subtask moved successfully");
+//         }
+//     } catch (error) {
+//         toast.error("Failed to move subtask");
+//     }
+// }
+
+// const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+//     try {
+//         const updatedTasks = tasks.map(task => 
+//             task.id === taskId ? { ...task, ...updates } : task
+//         );
+
+//         if (user) {
+//             await setDoc(doc(db, 'tasks', user.uid), {
+//                 taskList: updatedTasks
+//             });
+//             setTasks(updatedTasks);
+//             toast.success("Task updated successfully");
+//         }
+//     } catch (error) {
+//         toast.error("Failed to update task");
+//     }
+// }

@@ -67,6 +67,7 @@ export const geminiModel = {
       - Never combine different projects into one task
       - Generate unique IDs for each subtask
       - Maintain the hierarchy of the original input
+      - Always format the task and subtasks in professional english, correct grammer and correct spellings.
 
     For normal conversation, return only this JSON:
       {

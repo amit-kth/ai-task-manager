@@ -21,14 +21,11 @@ interface TasksListProps {
     onAddAllTasks: (tasks: Task[]) => void
 }
 
-export function AiDetectedTasksList({ tasks: initialTasks, onEditTask, onDeleteTask, onAddAllTasks }: TasksListProps) {
+export function AiDetectedTasksList({ tasks: initialTasks, onDeleteTask, onAddAllTasks }: TasksListProps) {
     const [tasks, setTasks] = useState(initialTasks)
     const [hoveredTask, setHoveredTask] = useState<number | null>(null)
     const [editingTask, setEditingTask] = useState<Task | null>(null)
     const { user } = useAuth()
-
-    console.log(!!editingTask);
-    
 
     const handleTaskEdit = (task: Task) => {
         setEditingTask(task)
@@ -40,56 +37,127 @@ export function AiDetectedTasksList({ tasks: initialTasks, onEditTask, onDeleteT
         onDeleteTask(index)
     }
 
-    const handleSaveTask = (updatedTask: Task) => {
-        setTasks(prev =>
-            prev.map(task =>
-                task.title === editingTask?.title ? updatedTask : task
-            )
-        )
-        onEditTask(updatedTask)
-        setEditingTask(null)
+    // Modify handleSaveTask function
+    const handleSaveTask = async (updatedTask: Task) => {
+        if (!user) {
+            toast.error("Authentication required");
+            return;
+        }
+
+        try {
+            // Get current tasks from Firestore
+            const tasksDoc = await getDoc(doc(db, 'tasks', user.uid));
+            const currentTasks = tasksDoc.exists() ? tasksDoc.data().taskList : [];
+
+            // Find if task exists in current tasks
+            const existingTaskIndex = currentTasks.findIndex((t: Task) => t.id === updatedTask.id);
+
+            if (existingTaskIndex !== -1) {
+                // Update existing task
+                currentTasks[existingTaskIndex] = {
+                    ...currentTasks[existingTaskIndex],
+                    ...updatedTask,
+                    subtasks: updatedTask.subtasks.map(subtask => ({
+                        ...subtask,
+                        id: subtask.id || uuidv4()
+                    }))
+                };
+            } else {
+                // If task doesn't exist, add it with the same ID
+                currentTasks.push({
+                    ...updatedTask,
+                    subtasks: updatedTask.subtasks.map(subtask => ({
+                        ...subtask,
+                        id: subtask.id || uuidv4()
+                    }))
+                });
+            }
+
+            // Update Firestore
+            await setDoc(doc(db, 'tasks', user.uid), {
+                taskList: currentTasks
+            });
+
+            // Update local state
+            setTasks(prev => {
+                const taskIndex = prev.findIndex(t => t.id === updatedTask.id);
+                if (taskIndex === -1) return prev;
+                const newTasks = [...prev];
+                newTasks[taskIndex] = updatedTask;
+                return newTasks;
+            });
+
+            toast.success("Task updated successfully");
+            setEditingTask(null);
+        } catch (error) {
+            console.error('Error updating task:', error);
+            toast.error("Failed to update task");
+        }
     }
 
+    // Modify handleAddAllTasks function
     const handleAddAllTasks = async () => {
         if (!user) {
             toast.error("Authentication required", {
                 description: "Please login to add tasks"
-            })
-            return
+            });
+            return;
         }
 
         try {
             // Get existing tasks from Firestore
-            const tasksDoc = await getDoc(doc(db, 'tasks', user.uid))
-            const existingTasks = tasksDoc.exists() ? tasksDoc.data().taskList : []
+            const tasksDoc = await getDoc(doc(db, 'tasks', user.uid));
+            const existingTasks = tasksDoc.exists() ? tasksDoc.data().taskList : [];
 
-            // Prepare new tasks with proper IDs
-            const tasksToAdd = tasks.map(task => ({
-                ...task,
-                id: uuidv4(),
-                subtasks: task.subtasks.map(subtask => ({
-                    ...subtask,
-                    id: uuidv4(),
-                }))
-            }))
+            // Process each task
+            const updatedTasks = [...existingTasks];
+            const newTasks = tasks.map(task => {
+                // Check if task already exists
+                const existingTaskIndex = existingTasks.findIndex((t: Task) => t.id === task.id);
 
-            // Update Firestore with new tasks
+                if (existingTaskIndex !== -1) {
+                    // Update existing task
+                    updatedTasks[existingTaskIndex] = {
+                        ...task,
+                        subtasks: task.subtasks.map(subtask => ({
+                            ...subtask,
+                            id: subtask.id || uuidv4(),
+                        }))
+                    };
+                    return null; // Skip this task as it's already handled
+                } else {
+                    // Create new task
+                    return {
+                        ...task,
+                        id: task.id || uuidv4(),
+                        subtasks: task.subtasks.map(subtask => ({
+                            ...subtask,
+                            id: subtask.id || uuidv4(),
+                        }))
+                    };
+                }
+            }).filter(Boolean); // Remove null values (already updated tasks)
+
+            // Add new tasks to the array
+            const finalTasks = [...updatedTasks, ...newTasks];
+
+            // Update Firestore
             await setDoc(doc(db, 'tasks', user.uid), {
-                taskList: [...existingTasks, ...tasksToAdd]
-            })
+                taskList: finalTasks
+            });
 
-            toast.success("Tasks added", {
-                description: "All tasks have been added to your task list"
-            })
+            toast.success("Tasks updated", {
+                description: "All tasks have been added or updated in your task list"
+            });
 
             // Clear the AI detected tasks list
-            setTasks([])
-            onAddAllTasks([])
+            setTasks([]);
+            onAddAllTasks([]);
         } catch (error) {
-            console.error('Error adding tasks:', error)
+            console.error('Error adding tasks:', error);
             toast.error("Error", {
-                description: "Failed to add tasks. Please try again."
-            })
+                description: "Failed to update tasks. Please try again."
+            });
         }
     }
 
