@@ -285,48 +285,55 @@ export default function TodoListPage() {
                   </div>
 
                   <AnimatePresence>
-                    {tasks.map((task, index) => (
-                      <motion.div
-                        key={task.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2, delay: index * 0.05 }}
-                        className="p-4 rounded-lg transition-all border bg-white border-gray-200 hover:bg-gray-50"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <label className="font-medium flex-1 text-gray-800">
-                            {task.title}
-                          </label>
-                          <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
-                            {task.status === "pending" ? "Pending" : "Running"}
-                          </span>
-                        </div>
+                    {/* Show running tasks first */}
+                    {tasks
+                      .sort((a, b) => {
+                        if (a.status === "running" && b.status !== "running") return -1;
+                        if (a.status !== "running" && b.status === "running") return 1;
+                        return 0;
+                      })
+                      .map((task, index) => (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                          className="p-4 rounded-lg transition-all border bg-white border-gray-200 hover:bg-gray-50"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <label className="font-medium flex-1 text-gray-800">
+                              {task.title}
+                            </label>
+                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
+                              {task.status === "pending" ? "Pending" : "Running"}
+                            </span>
+                          </div>
 
-                        <div className="mt-3 pl-8 space-y-2">
-                          {task.subtasks.map((subtask) => {
-                            if (subtask.completed) return null // not returning completed tasks.
-                            return <motion.div
-                              key={subtask.id}
-                              initial={{ opacity: 0, x: -5 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="text-sm text-gray-600 flex items-center gap-2"
-                            >
-                              <Checkbox
-                                id={subtask.id}
-                                checked={selectedSubtasks.includes(subtask.id)}
-                                onCheckedChange={() => handleSubtaskSelect(subtask.id)}
-                                className={selectedSubtasks.includes(subtask.id) ? "bg-blue-600 border-blue-600" : ""}
-                              />
-                              <label htmlFor={subtask.id} className="cursor-pointer">
-                                {subtask.title}
-                              </label>
-                            </motion.div>
-                          })}
-                        </div>
-                      </motion.div>
-                    ))}
+                          <div className="mt-3 pl-8 space-y-2">
+                            {task.subtasks.map((subtask) => {
+                              if (subtask.completed) return null // not returning completed tasks.
+                              return <motion.div
+                                key={subtask.id}
+                                initial={{ opacity: 0, x: -5 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-sm text-gray-600 flex items-center gap-2"
+                              >
+                                <Checkbox
+                                  id={subtask.id}
+                                  checked={selectedSubtasks.includes(subtask.id)}
+                                  onCheckedChange={() => handleSubtaskSelect(subtask.id)}
+                                  className={selectedSubtasks.includes(subtask.id) ? "bg-blue-600 border-blue-600" : ""}
+                                />
+                                <label htmlFor={subtask.id} className="cursor-pointer">
+                                  {subtask.title}
+                                </label>
+                              </motion.div>
+                            })}
+                          </div>
+                        </motion.div>
+                      ))}
                   </AnimatePresence>
                 </div>
               )}

@@ -179,7 +179,7 @@ export default function AIAssistantPage() {
             } catch (error) { toast.error(`${error}`) }
         };
         fetchTasks();
-    }, [user, db]);
+    }, [user]);
 
 
     // Add this function to handle task selection

@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { PlusCircle, ClipboardCopy, LogOut, Sparkles, User, Settings } from "lucide-react"
+import { PlusCircle, ClipboardCopy, LogOut, Sparkles, User, Settings, ChevronDown } from "lucide-react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
@@ -17,9 +17,24 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logOut } from "./firebase/firebase"
 
+
 export default function Header() {
     const router = useRouter()
     const { userData } = useAuth()
+    // const [selectedIndex, setSelectedIndex] = useState("0")
+
+    // const options = [
+    //     {
+    //         label: "Generate Todo List",
+    //         description: "Create a new todo list",
+    //         path: "/todo-list"
+    //     },
+    //     {
+    //         label: "Monthly Report",
+    //         description: "Generate monthly task report",
+    //         path: "/monthly-report"
+    //     }
+    // ]
 
     const handleLogout = async () => {
         try {
@@ -58,17 +73,44 @@ export default function Header() {
                     {userData?.email}
                 </p>
             </div>
+          
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                <Button
-                    variant="outline"
-                    onClick={() => router.push("/todo-list")}
-                    className="flex-1 sm:flex-none items-center gap-2 shadow-sm hover:shadow transition-all text-sm"
-                >
-                    <ClipboardCopy className="h-4 w-4" />
-                    <span className="hidden sm:inline">Create Todo List</span>
-                    <span className="sm:hidden">Todo List</span>
-                </Button>
+                <div className="divide-primary-foreground/30 inline-flex divide-x rounded-md shadow-xs rtl:space-x-reverse flex-1 sm:flex-none">
+                    {/* <Button
+                        variant="outline"
+                        className="rounded-none shadow-none first:rounded-s-md last:rounded-e-md focus-visible:z-10 w-full"
+                        onClick={() => router.push(options[Number(selectedIndex)].path)}
+                    >
+                        <ClipboardCopy className="h-4 w-4 mr-2" />
+                        <span className="hidden sm:inline">{options[Number(selectedIndex)].label}</span>
+                        <span className="sm:hidden">{options[Number(selectedIndex)].label.split(' ').pop()}</span>
+                    </Button> */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="flex-1 sm:flex-none items-center gap-2 shadow-sm hover:shadow transition-all text-sm"
+                            >
+                                <ClipboardCopy className="h-4 w-4" />
+                                <span className="hidden sm:inline">Generate Report</span>
+                                <span className="sm:hidden">Report</span>
+                                <ChevronDown className="h-4 w-4 ml-1" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[200px]">
+                            <DropdownMenuItem onClick={() => router.push("/todo-list")} className="flex flex-col items-start py-2">
+                                <span className="font-medium">Generate Todo List</span>
+                                <span className="text-xs text-muted-foreground">Create a new todo list</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push("/monthly-report")} className="flex flex-col items-start py-2">
+                                <span className="font-medium">Monthly Report</span>
+                                <span className="text-xs text-muted-foreground">Generate monthly task report</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
 
+                {/* Keep the rest of the buttons */}
                 <Button
                     variant="outline"
                     onClick={() => router.push("/ai-assistant")}

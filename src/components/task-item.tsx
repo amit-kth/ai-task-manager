@@ -119,7 +119,7 @@ export default function TaskItem({
       <div className={`flex flex-col sm:flex-row items-start sm:items-center p-3 sm:p-4 ${statusBg}`}>
         <div className="flex-1 w-full sm:w-auto">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h3 className="font-medium text-gray-800 text-sm sm:text-base">{task.title}</h3>
+            <h3 className="font-medium text-gray-800 text-sm sm:text-base capitalize">{task.title}</h3>
             <div className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(task.status)}`}>
               {getStatusLabel(task.status)}
             </div>
@@ -132,7 +132,7 @@ export default function TaskItem({
                 {completedSubtasks} of {totalSubtasks} subtasks
               </span>
             </div>
-            <Progress value={progress} className="h-1.5" indicatorClassName={statusColor.replace("bg-", "bg-")} />
+            <Progress value={progress} className="h-1.5 bg-white" indicatorClassName={statusColor.replace("bg-", "bg-")} />
           </div>
         </div>
 
@@ -237,7 +237,7 @@ export default function TaskItem({
                     />
                     <label
                       htmlFor={`${task.id}-${subtask.id}`}
-                      className={`flex-1 cursor-pointer text-xs sm:text-sm ${subtask.completed ? "line-through text-gray-400" : "text-gray-700"
+                      className={`flex-1 capitalize cursor-pointer text-xs sm:text-sm ${subtask.completed ? "line-through text-gray-400" : "text-gray-700"
                         }`}
                     >
                       {subtask.title}
