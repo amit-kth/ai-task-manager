@@ -21,7 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  // const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const router = useRouter()
   const { user } = useAuth()
 
@@ -101,16 +101,16 @@ export default function Login() {
 
             <Button
               onClick={signInWithGoogle}
-              disabled={isGoogleLoading}
+              // disabled={isGoogleLoading}
               variant="outline"
               className="w-full border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
             >
-              {isGoogleLoading ? (
+              {/* {isGoogleLoading ? (
                 <div className="flex items-center">
                   <div className="h-4 w-4 mr-2 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
                   Connecting...
                 </div>
-              ) : (
+              ) : ( */}
                 <div className="flex items-center">
                   <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                     <path
@@ -132,7 +132,7 @@ export default function Login() {
                   </svg>
                   Continue with Google
                 </div>
-              )}
+              {/* )} */}
             </Button>
 
             <div className="relative my-6">
