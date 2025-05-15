@@ -2,46 +2,60 @@
 
 import type React from "react"
 import { useState } from "react"
-import { useAuth } from "@/context/AuthContext"
-import { signIn, signInWithGoogle } from "@/components/firebase/firebase"
+// import { useAuth } from "@/context/AuthContext"
+import { signUp, signInWithGoogle } from "@/components/firebase/firebase"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, LogIn, Lock, Mail } from "lucide-react"
+import { AlertCircle, UserPlus, Lock, Mail, User } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import Link from "next/link"
 import { Separator } from "@radix-ui/react-select"
 
-export default function Login() {
+export default function Signup() {
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
-
-  console.log(user)
+  // const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate form
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      toast.error("Passwords do not match")
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters")
+      toast.error("Password must be at least 6 characters")
+      return
+    }
+
     setIsLoading(true)
     setError("")
 
     try {
-      await signIn(email, password)
-      router.push("/")
-      toast.success("Login successful", {
-        description: "Welcome back to Task Manager!",
+      await signUp(email, password, name)
+      toast.success("Account created successfully", {
+        description: "Welcome to Task Manager!",
       })
+      router.push("/")
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
-      toast.error("Login failed", {
+      toast.error("Signup failed", {
         description: errorMessage,
       })
     } finally {
@@ -49,21 +63,21 @@ export default function Login() {
     }
   }
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignup = async () => {
     setIsGoogleLoading(true)
     setError("")
 
     try {
       await signInWithGoogle()
-      router.push("/")
-      toast.success("Login successful", {
-        description: "Welcome back to Task Manager!",
+      toast.success("Account created successfully", {
+        description: "Welcome to Task Manager!",
       })
+      router.push("/")
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       if (errorMessage !== "Sign-in cancelled") {
         setError(errorMessage)
-        toast.error("Google login failed", {
+        toast.error("Google signup failed", {
           description: errorMessage,
         })
       }
@@ -80,16 +94,16 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="w-full shadow-lg border-gray-100 overflow-hidden pt-0">
+        <Card className="w-full shadow-lg border-gray-100 overflow-hidden">
           <div className="h-2 bg-gradient-to-r from-blue-600 to-purple-600"></div>
           <CardHeader className="space-y-1 text-center">
             <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-gradient-to-r from-blue-600/10 to-purple-600/10 flex items-center justify-center">
-              <Lock className="h-8 w-8 text-blue-600" />
+              <UserPlus className="h-8 w-8 text-blue-600" />
             </div>
             <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Welcome Back
+              Create an Account
             </CardTitle>
-            <p className="text-sm text-gray-500">Sign in to your Task Manager account</p>
+            <p className="text-sm text-gray-500">Sign up to start managing your tasks</p>
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
@@ -100,7 +114,7 @@ export default function Login() {
             )}
 
             <Button
-              onClick={handleGoogleSignIn}
+              onClick={handleGoogleSignup}
               disabled={isGoogleLoading}
               variant="outline"
               className="w-full border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
@@ -144,6 +158,24 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="name" className="text-gray-700">
+                  Full Name
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="John Doe"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10 border-gray-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-700">
                   Email address
                 </Label>
@@ -160,12 +192,11 @@ export default function Login() {
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-gray-700">
-                    Password
-                  </Label>
-                </div>
+                <Label htmlFor="password" className="text-gray-700">
+                  Password
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                   <Input
@@ -179,6 +210,25 @@ export default function Login() {
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-gray-700">
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10 border-gray-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all"
+                  />
+                </div>
+              </div>
+
               <Button
                 type="submit"
                 disabled={isLoading}
@@ -187,12 +237,12 @@ export default function Login() {
                 {isLoading ? (
                   <div className="flex items-center">
                     <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Signing in...
+                    Creating account...
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Sign in
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Create Account
                   </div>
                 )}
               </Button>
@@ -200,9 +250,9 @@ export default function Login() {
 
             <div className="text-center mt-4">
               <p className="text-sm text-gray-500">
-                Don&apos;t have an account?{" "}
-                <Link href="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
-                  Sign up
+                Already have an account?{" "}
+                <Link href="/login" className="text-blue-600 hover:text-blue-800 font-medium">
+                  Sign in
                 </Link>
               </p>
             </div>

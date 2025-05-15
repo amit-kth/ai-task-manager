@@ -31,6 +31,6 @@ export const config = {
          * - images
          * - favicon
          */
-        '/((?!login|api|_next/static|_next/image|favicon.ico).*)',
+        '/((?!login|signup|api|_next/static|_next/image|favicon.ico).*)',
     ]
 }

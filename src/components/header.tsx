@@ -21,21 +21,7 @@ import { logOut } from "./firebase/firebase"
 export default function Header() {
     const router = useRouter()
     const { userData } = useAuth()
-    // const [selectedIndex, setSelectedIndex] = useState("0")
-
-    // const options = [
-    //     {
-    //         label: "Generate Todo List",
-    //         description: "Create a new todo list",
-    //         path: "/todo-list"
-    //     },
-    //     {
-    //         label: "Monthly Report",
-    //         description: "Generate monthly task report",
-    //         path: "/monthly-report"
-    //     }
-    // ]
-
+    
     const handleLogout = async () => {
         try {
             await logOut()
@@ -67,7 +53,7 @@ export default function Header() {
         >
             <div>
                 <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {userData?.name + `'s Task Manager`}
+                    {userData?.name ? `${userData.name}'s Task Manager` : 'Task Manager'}
                 </h1>
                 <p className="text-sm sm:text-base text-gray-500 mt-1">
                     {userData?.email}

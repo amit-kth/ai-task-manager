@@ -46,13 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error fetching user data:', error);
         }
       } else {
-        document.cookie = 'firebase-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+        document.cookie = 'firebase-token=; path=/; expires=Thu, 01 Jan 2026 00:00:01 GMT';
         setUserData(null);
       }
       setUser(user);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
