@@ -49,28 +49,28 @@ export default function Login() {
     }
   }
 
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true)
-    setError("")
+  // const handleGoogleSignIn = async () => {
+  //   setIsGoogleLoading(true)
+  //   setError("")
 
-    try {
-      await signInWithGoogle()
-      router.push("/")
-      toast.success("Login successful", {
-        description: "Welcome back to Task Manager!",
-      })
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
-      if (errorMessage !== "Sign-in cancelled") {
-        setError(errorMessage)
-        toast.error("Google login failed", {
-          description: errorMessage,
-        })
-      }
-    } finally {
-      setIsGoogleLoading(false)
-    }
-  }
+  //   try {
+  //     await signInWithGoogle()
+  //     router.push("/")
+  //     toast.success("Login successful", {
+  //       description: "Welcome back to Task Manager!",
+  //     })
+  //   } catch (error: unknown) {
+  //     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+  //     if (errorMessage !== "Sign-in cancelled") {
+  //       setError(errorMessage)
+  //       toast.error("Google login failed", {
+  //         description: errorMessage,
+  //       })
+  //     }
+  //   } finally {
+  //     setIsGoogleLoading(false)
+  //   }
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -100,7 +100,7 @@ export default function Login() {
             )}
 
             <Button
-              onClick={handleGoogleSignIn}
+              onClick={signInWithGoogle}
               disabled={isGoogleLoading}
               variant="outline"
               className="w-full border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
