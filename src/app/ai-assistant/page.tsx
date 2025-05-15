@@ -3,39 +3,63 @@
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Sparkles, Send, Bot, User, Loader2 } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { Card, } from "@/components/ui/card"
+import { HelpCircle } from "lucide-react"
+import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
-import { Textarea } from "@/components/ui/textarea"
 import { geminiModel } from "@/lib/gemini"
 import { toast } from "sonner"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import type { ChatMessage, Task, TaskResponse } from "@/lib/types"
-import { AiDetectedTasksList } from "./components/ai-detected-tasklist"
 import { useAuth } from "@/context/AuthContext"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/components/firebase/firebase"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import useSWR from "swr"
+import { ChatContainer } from "./components/ChatContainer"
+import { ChatInput } from "./components/ChatInput"
+import { HelpContent } from "./components/HelpContent"
+
+// Fetch tasks from Firestore
+const fetchTasks = async (userId: string) => {
+    if (!userId) return []
+
+    try {
+        const tasksDoc = await getDoc(doc(db, "tasks", userId))
+        if (tasksDoc.exists()) {
+            return tasksDoc.data().taskList || []
+        }
+        return []
+    } catch (error) {
+        console.error("Error fetching tasks:", error)
+        throw new Error("Failed to fetch tasks")
+    }
+}
 
 export default function AIAssistantPage() {
     const [input, setInput] = useState("")
     const [isProcessing, setIsProcessing] = useState(false)
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
     const [isTyping, setIsTyping] = useState(false)
+    const [activeTab, setActiveTab] = useState("chat")
     const chatContainerRef = useRef<HTMLDivElement>(null)
-    const [tasks, setTasks] = useState<Task[]>([])
     const [mentionPopoverOpen, setMentionPopoverOpen] = useState(false)
-    const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 })
+    const [mentionFilter, setMentionFilter] = useState("")
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const router = useRouter()
     const { user } = useAuth()
+    const [examplePrompt, setExamplePrompt] = useState<string | null>(null)
+    const [internalPrompt, setInternalPrompt] = useState<string | null>(null)
+
+    // Use SWR for data fetching with caching
+    const {
+        data: tasks = [],
+        error,
+        mutate,
+    } = useSWR(user ? ["tasks", user.uid] : null, () => (user ? fetchTasks(user.uid) : []), {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        dedupingInterval: 60000, // 1 minute
+    })
 
     // Auto-scroll to bottom when chat history updates
     useEffect(() => {
@@ -44,77 +68,107 @@ export default function AIAssistantPage() {
         }
     }, [chatHistory])
 
-    // Add this function to extract mentioned tasks
-    const extractMentionedTasks = (input: string): Task[] => {
-        const mentionedTasks: Task[] = [];
-        const mentions = input.match(/@([^@\s]+)/g) || [];
-        
-        mentions.forEach(mention => {
-            const taskTitle = mention.slice(1); // Remove @ symbol
-            const task = tasks.find(t => t.title === taskTitle);
-            if (task) {
-                mentionedTasks.push(task);
+    // Load chat history from localStorage
+    useEffect(() => {
+        const savedHistory = localStorage.getItem("chatHistory")
+        if (savedHistory) {
+            try {
+                setChatHistory(JSON.parse(savedHistory))
+            } catch (e) {
+                console.error("Error loading chat history:", e)
             }
-        });
-        
-        return mentionedTasks;
+        }
+    }, [])
+
+    // Save chat history to localStorage
+    useEffect(() => {
+        if (chatHistory.length > 0) {
+            localStorage.setItem("chatHistory", JSON.stringify(chatHistory))
+        }
+    }, [chatHistory])
+
+    // Extract mentioned tasks
+    const extractMentionedTasks = (input: string): Task[] => {
+        const mentionedTasks: Task[] = []
+        const mentions = input.match(/@([^@\s]+)/g) || []
+
+        mentions.forEach((mention) => {
+            const taskTitle = mention.slice(1) // Remove @ symbol
+            const task = tasks.find((t: Task) => t.title.toLowerCase() === taskTitle.toLowerCase())
+            if (task) {
+                mentionedTasks.push(task)
+            }
+        })
+
+        return mentionedTasks
     }
-    
-    // Modify handleSubmit to include task details
+
+    // Handle form submission
     const handleSubmit = async () => {
         if (!input.trim()) return
-    
+
         try {
             setIsProcessing(true)
-            const mentionedTasks = extractMentionedTasks(input);
-            
+            const mentionedTasks = extractMentionedTasks(input)
+
             // Create context with mentioned task details
-            let aiContext = input;
+            let aiContext = input
             if (mentionedTasks.length > 0) {
-                aiContext += "\n\nReferenced Tasks:\n" + mentionedTasks.map(task => 
-                    JSON.stringify({
-                        id: task.id,
-                        title: task.title,
-                        status: task.status,
-                        subtasks: task.subtasks
-                    }, null, 2)
-                ).join("\n");
+                aiContext +=
+                    "\n\nReferenced Tasks:\n" +
+                    mentionedTasks
+                        .map((task) =>
+                            JSON.stringify(
+                                {
+                                    id: task.id,
+                                    title: task.title,
+                                    status: task.status,
+                                    subtasks: task.subtasks,
+                                },
+                                null,
+                                2,
+                            ),
+                        )
+                        .join("\n")
             }
-    
-            const userMessage: ChatMessage = { 
-                role: "user", 
+
+            const userMessage: ChatMessage = {
+                role: "user",
                 content: input,
                 parsedResponse: input,
-                mentionedTasks // Add this to track mentioned tasks
+                mentionedTasks,
+                timestamp: new Date().toISOString(),
             }
             setChatHistory((prev) => [...prev, userMessage])
             setInput("")
-    
+
             setIsTyping(true)
-    
+
             // Send the context-enriched prompt to AI
             const result = await geminiModel.generateContent(aiContext)
             setIsTyping(false)
-    
+
             try {
-                // Parse AI response and execute actions
-                const aiResponse = result as TaskResponse;
-                if (aiResponse.actions) {
-                    // await handleAIActions(aiResponse.actions, mentionedTasks);
-                }
-    
+                // Parse AI response
+                const aiResponse = result as TaskResponse
+                // if (aiResponse.actions && aiResponse.actions.length > 0) {
+                //     await handleAIActions(aiResponse.actions)
+                // }
+
                 const aiMessage: ChatMessage = {
                     role: "assistant",
                     content: result.message,
                     parsedResponse: aiResponse,
-                    
+                    timestamp: new Date().toISOString(),
                 }
                 setChatHistory((prev) => [...prev, aiMessage])
             } catch (error) {
+                console.error("Error processing AI response:", error)
                 const aiMessage: ChatMessage = {
                     role: "assistant",
-                    content: `${result.message} & ${error}`,
+                    content: result.message,
                     parsedResponse: "Failed" as string,
+                    timestamp: new Date().toISOString(),
                 }
                 setChatHistory((prev) => [...prev, aiMessage])
             }
@@ -133,406 +187,279 @@ export default function AIAssistantPage() {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             handleSubmit()
+        } else if (e.key === "@") {
+            handleMentionKeyPressed()
         }
     }
 
-    const handleAddToFirebase = async (task: Task) => {
-        try {
-            console.log(task);
-
-            // await addTaskToFirebase(task);
-            toast.success("Task added successfully!")
-        } catch (error) {
-            toast.error("Failed to add task" + `${error}`)
-        }
+    const handleMentionKeyPressed = () => {
+        setMentionPopoverOpen(true)
+        setMentionFilter("")
     }
 
+    // Handle task editing
     const handleEditTask = (task: Task) => {
-        // TODO: Implement edit task functionality
+        // This is handled in the AiDetectedTasksList component
         console.log("Edit task:", task)
     }
 
+    // Handle task deletion
     const handleDeleteTask = () => {
-        // Implementation preserved
+        // This is handled in the AiDetectedTasksList component
     }
 
-    const handleAddAllTasks = async (tasks: Task[]) => {
+    // Add all tasks to Firebase
+    const handleAddAllTasks = async (tasksToAdd: Task[]) => {
+        if (!user) {
+            toast.error("Authentication required")
+            return
+        }
+
         try {
-            for (const task of tasks) {
-                await handleAddToFirebase(task)
-            }
+            // Get current tasks
+            const tasksDoc = await getDoc(doc(db, "tasks", user.uid))
+            const currentTasks = tasksDoc.exists() ? tasksDoc.data().taskList || [] : []
+
+            // Add timestamp to each task
+            const tasksWithTimestamp = tasksToAdd.map((task) => ({
+                ...task,
+                createdAt: new Date().toISOString(),
+            }))
+
+            // Add to tasks list
+            const updatedTasks = [...currentTasks, ...tasksWithTimestamp]
+
+            // Update Firestore
+            await setDoc(doc(db, "tasks", user.uid), {
+                taskList: updatedTasks,
+                lastUpdated: serverTimestamp(),
+            })
+
+            // Update local cache
+            mutate(updatedTasks, false)
+
             toast.success("All tasks added successfully!")
         } catch (error) {
-            toast.error("Failed to add tasks" + " " + `${error}`)
+            console.error("Error adding tasks:", error)
+            toast.error("Failed to add tasks")
         }
     }
 
-    //fetching tasks
-    useEffect(() => {
-        const fetchTasks = async () => {
-            if (!user) return;
-            try {
-                const tasksDoc = await getDoc(doc(db, 'tasks', user.uid));
-                if (tasksDoc.exists()) {
-                    setTasks(tasksDoc.data().taskList || []);
-                }
-            } catch (error) { toast.error(`${error}`) }
-        };
-        fetchTasks();
-    }, [user]);
-
-
-    // Add this function to handle task selection
+    // Handle task selection for mention
     const handleTaskSelect = (task: Task) => {
         setMentionPopoverOpen(false)
         const taskMention = `@${task.title}`
-        setInput((prev) => {
-            const beforeAt = prev.substring(0, prev.lastIndexOf('@'))
-            return `${beforeAt}${taskMention} `
-        })
-        // Focus back on textarea
-        textareaRef.current?.focus()
+
+        // Insert the mention at cursor position
+        if (textareaRef.current) {
+            const cursorPos = textareaRef.current.selectionStart
+            const textBefore = input.substring(0, cursorPos - 1) // Remove the @ that triggered this
+            const textAfter = input.substring(cursorPos)
+            setInput(`${textBefore}${taskMention} ${textAfter}`)
+
+            // Focus back on textarea and set cursor position after the mention
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus()
+                    const newCursorPos = textBefore.length + taskMention.length + 1
+                    textareaRef.current.setSelectionRange(newCursorPos, newCursorPos)
+                }
+            }, 0)
+        }
     }
 
-    // Modify the textarea onChange handler
+    // Handle input change
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value
         setInput(value)
 
         // Check for @ symbol
-        if (value.endsWith('@')) {
-            const rect = e.target.getBoundingClientRect()
-            const lineHeight = parseInt(getComputedStyle(e.target).lineHeight)
-            const lines = value.split('\n').length
-            console.log("@ detected");
+        if (value.includes("@")) {
+            const lastAtIndex = value.lastIndexOf("@")
+            const textAfterAt = value.substring(lastAtIndex + 1).split(/\s/)[0]
 
-
-            setMentionPosition({
-                top: -(rect.top + (lines * lineHeight)),
-                left: rect.left
-            })
-            setMentionPopoverOpen(true)
+            // Only open popover if @ is at the end or followed by text without spaces
+            if (lastAtIndex === value.length - 1 || textAfterAt) {
+                setMentionFilter(textAfterAt)
+                setMentionPopoverOpen(true)
+            } else {
+                setMentionPopoverOpen(false)
+            }
+        } else {
+            setMentionPopoverOpen(false)
         }
     }
 
-    console.log(mentionPopoverOpen, mentionPosition);
+    // Filter tasks for mention
+    const filteredTasks = tasks.filter(
+        (task: Task) => !mentionFilter || task.title.toLowerCase().includes(mentionFilter.toLowerCase()),
+    )
 
+    // Handle AI actions
+    // const handleAIActions = async (actions: AIAction[]) => {
+    //     if (!user || !actions || actions.length === 0) return
+    //
+    //     try {
+    //         // Get current tasks
+    //         const tasksDoc = await getDoc(doc(db, "tasks", user.uid))
+    //         const currentTasks = tasksDoc.exists() ? tasksDoc.data().taskList || [] : []
+    //         const updatedTasks = [...currentTasks]
+    //         let actionsPerformed = false
+    //
+    //         for (const action of actions) {
+    //             switch (action.type) {
+    //                 case "ADD_SUBTASK":
+    //                     if (action.taskId && action.subtask) {
+    //                         const taskIndex = updatedTasks.findIndex((t) => t.id === action.taskId)
+    //                         if (taskIndex !== -1) {
+    //                             updatedTasks[taskIndex] = {
+    //                                 ...updatedTasks[taskIndex],
+    //                                 subtasks: [
+    //                                     ...updatedTasks[taskIndex].subtasks,
+    //                                     {
+    //                                         id: Date.now().toString(),
+    //                                         title: action.subtask.title,
+    //                                         completed: false,
+    //                                     },
+    //                                 ],
+    //                             }
+    //                             actionsPerformed = true
+    //                         }
+    //                     }
+    //                     break
+    //
+    //                 case "UPDATE_TASK":
+    //                     if (action.taskId && action.updates) {
+    //                         const taskIndex = updatedTasks.findIndex((t) => t.id === action.taskId)
+    //                         if (taskIndex !== -1) {
+    //                             updatedTasks[taskIndex] = {
+    //                                 ...updatedTasks[taskIndex],
+    //                                 ...action.updates,
+    //                             }
+    //                             actionsPerformed = true
+    //                         }
+    //                     }
+    //                     break
+    //
+    //                 // Add more action handlers as needed
+    //             }
+    //         }
+    //
+    //         if (actionsPerformed) {
+    //             // Update Firestore
+    //             await setDoc(doc(db, "tasks", user.uid), {
+    //                 taskList: updatedTasks,
+    //                 lastUpdated: serverTimestamp(),
+    //             })
+    //
+    //             // Update local cache
+    //             mutate(updatedTasks, false)
+    //
+    //             toast.success("Tasks updated based on your request")
+    //         }
+    //     } catch (error) {
+    //         console.error("Error handling AI actions:", error)
+    //         toast.error("Failed to update tasks")
+    //     }
+    // }
+
+    // Clear chat history
+    const handleClearChat = () => {
+        if (confirm("Are you sure you want to clear the chat history?")) {
+            setChatHistory([])
+            localStorage.removeItem("chatHistory")
+            toast.success("Chat history cleared")
+        }
+    }
+
+    // Remove the useExamplePrompt function and modify the logic
+    const handleExamplePrompt = (prompt: string) => {
+        setInput(prompt)
+        textareaRef.current?.focus()
+    }
+
+    useEffect(() => {
+        if (examplePrompt) {
+            setInternalPrompt(examplePrompt)
+            setExamplePrompt(null) // Reset the state
+        }
+    }, [examplePrompt])
+
+    useEffect(() => {
+        if (internalPrompt) {
+            handleExamplePrompt(internalPrompt)
+            setInternalPrompt(null)
+        }
+    }, [internalPrompt])
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-md">
+                    <div className="text-red-500 mb-4">
+                        <HelpCircle className="h-12 w-12 mx-auto" />
+                    </div>
+                    <h3 className="text-xl font-medium text-gray-800 mb-2">Error Loading Tasks</h3>
+                    <p className="text-gray-600 mb-4">We couldn&apos;t load your tasks. Please try again later.</p>
+                    <Button onClick={() => router.push("/")} className="bg-gradient-to-r from-blue-600 to-purple-600">
+                        Return to Dashboard
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4">
-            <div className="container mx-auto max-w-4xl">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-                    <Button
-                        variant="ghost"
-                        onClick={() => router.push("/")}
-                        className="mb-6 flex items-center gap-2 hover:bg-white/80"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Tasks
-                    </Button>
-                </motion.div>
-
+        <div className="h-full fixed inset-0 overflow-hidden bg-gray-50 py-8 px-4 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="container absolute top-1/2 -translate-y-3/5 left-1/2 -translate-x-1/2 h-[80%]">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                    <Card className="w-full shadow-lg border-gray-100 overflow-hidden">
-                        <div className="h-2 bg-gradient-to-r from-blue-600 to-purple-600"></div>
-                        <CardHeader className="pb-3 border-b border-gray-100">
-                            <CardTitle className="flex items-center gap-2 text-2xl">
-                                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600/20 to-purple-600/20 flex items-center justify-center">
-                                    <Sparkles className="h-4 w-4 text-purple-600" />
+                    <Card className="w-full shadow-lg border-gray-100 overflow-auto p-0">
+                        {/* <AIHeader /> */}
+
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="p-2">
+                            <TabsList className="cursor-pointer">
+                                <TabsTrigger value="chat" className="cursor-pointer">Chat</TabsTrigger>
+                                <TabsTrigger value="help" className="cursor-pointer">Help</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="chat" className="m-0 overflow-auto">
+                                <div className="flex flex-col h-[600px]">
+                                    <ChatContainer
+                                        chatHistory={chatHistory}
+                                        isTyping={isTyping}
+                                        chatContainerRef={chatContainerRef as React.RefObject<HTMLDivElement>}
+                                        handleEditTask={handleEditTask}
+                                        handleDeleteTask={handleDeleteTask}
+                                        handleAddAllTasks={handleAddAllTasks}
+                                        setExamplePrompt={setExamplePrompt}
+                                    />
+
+                                    <ChatInput
+                                        input={input}
+                                        isProcessing={isProcessing}
+                                        textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
+                                        mentionPopoverOpen={mentionPopoverOpen}
+                                        setMentionPopoverOpen={setMentionPopoverOpen}
+                                        mentionFilter={mentionFilter}
+                                        setMentionFilter={setMentionFilter}
+                                        filteredTasks={filteredTasks}
+                                        handleSubmit={handleSubmit}
+                                        handleInputChange={handleInputChange}
+                                        handleKeyDown={handleKeyDown}
+                                        handleTaskSelect={handleTaskSelect}
+                                        handleClearChat={handleClearChat}
+                                        chatHistory={chatHistory}
+                                    />
                                 </div>
-                                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                    AI Task Assistant
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="flex flex-col h-[600px]">
-                                <div
-                                    ref={chatContainerRef}
-                                    className="flex-1 p-6 space-y-6 overflow-y-auto"
-                                    style={{ scrollbarWidth: "thin", scrollbarColor: "#d1d5db transparent" }}
-                                >
-                                    {chatHistory.length === 0 ? (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.3 }}
-                                            className="h-full flex flex-col items-center justify-center text-center p-6"
-                                        >
-                                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-600/10 to-purple-600/10 flex items-center justify-center mb-4">
-                                                <Bot className="h-8 w-8 text-purple-500" />
-                                            </div>
-                                            <h3 className="text-xl font-medium text-gray-700 mb-2">AI Task Assistant</h3>
-                                            <p className="text-gray-500 max-w-md">
-                                                Describe your tasks or ask for help with organizing your work. I can help create task lists and
-                                                provide productivity tips.
-                                            </p>
-                                        </motion.div>
-                                    ) : (
-                                        <AnimatePresence>
-                                            {chatHistory.map((message, index) => (
-                                                <motion.div
-                                                    key={index}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ duration: 0.3 }}
-                                                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-6`}
-                                                >
-                                                    <div className={`flex w-full ${message.role === "user" ? "flex-row-reverse" : ""}`}>
+                            </TabsContent>
 
-                                                        <div
-                                                            className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${message.role === "user" ? "bg-blue-100 ml-3" : "bg-purple-100 mr-3"
-                                                                }`}
-                                                        >
-                                                            {message.role === "user" ? (
-                                                                <User className="h-4 w-4 text-blue-600" />
-                                                            ) : (
-                                                                <Bot className="h-4 w-4 text-purple-600" />
-                                                            )}
-                                                        </div>
-
-                                                        <div className={` flex flex-col w-full ${message.role === "user" ? "items-end" : "items-start"} `}>
-                                                            <div
-                                                                className={`p-4 rounded-2xl w-fit ${message.role === "user"
-                                                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-tr-none items-start"
-                                                                    : "bg-white border border-gray-200 shadow-sm rounded-tl-none items-start"
-                                                                    }`}
-                                                                style={{
-                                                                    wordBreak: "break-word",
-                                                                }}
-                                                            >
-                                                                <div
-                                                                    className={message.role === "user" ? "text-white" : "text-gray-800"}
-                                                                    style={{
-                                                                        fontSize: "0.9375rem",
-                                                                        lineHeight: "1.5",
-                                                                    }}
-                                                                >
-                                                                    <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
-                                                                </div>
-                                                            </div>
-                                                            {typeof message.parsedResponse === "object" && message.parsedResponse.isTask && (
-                                                                <div className="w-full">
-                                                                    <AiDetectedTasksList
-                                                                        tasks={message.parsedResponse.task}
-                                                                        onEditTask={handleEditTask}
-                                                                        onDeleteTask={handleDeleteTask}
-                                                                        onAddAllTasks={handleAddAllTasks}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
-
-                                            {/* Typing indicator */}
-                                            {isTyping && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0 }}
-                                                    className="flex justify-start mb-6"
-                                                >
-                                                    <div className="flex">
-                                                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                                                            <Bot className="h-4 w-4 text-purple-600" />
-                                                        </div>
-                                                        <div className="p-4 rounded-2xl bg-white border border-gray-200 shadow-sm rounded-tl-none">
-                                                            <div className="flex space-x-2">
-                                                                <motion.div
-                                                                    animate={{ y: [0, -5, 0] }}
-                                                                    transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, delay: 0 }}
-                                                                    className="h-2 w-2 bg-purple-400 rounded-full"
-                                                                />
-                                                                <motion.div
-                                                                    animate={{ y: [0, -5, 0] }}
-                                                                    transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, delay: 0.2 }}
-                                                                    className="h-2 w-2 bg-purple-500 rounded-full"
-                                                                />
-                                                                <motion.div
-                                                                    animate={{ y: [0, -5, 0] }}
-                                                                    transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, delay: 0.4 }}
-                                                                    className="h-2 w-2 bg-purple-600 rounded-full"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    )}
-                                </div>
-
-                                <div className="p-4 border-t border-gray-100 bg-white">
-                                    <div className="flex gap-3">
-                                        <div className="relative flex-1">
-                                            <Textarea
-                                                ref={textareaRef}
-                                                placeholder="Describe your tasks or ask for help... (Type @ to mention a task)"
-                                                value={input}
-                                                onChange={handleInputChange}
-                                                onKeyDownCapture={handleKeyDown}
-                                                className="flex-1 min-h-[60px] max-h-[120px] border-gray-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all resize-none"
-                                            />
-                                            <Popover open={mentionPopoverOpen} onOpenChange={setMentionPopoverOpen}>
-                                                <PopoverTrigger asChild>
-                                                    <div className="w-0 h-0" />
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-[300px] p-0"
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: `${mentionPosition.top}px`,
-                                                        left: `${mentionPosition.left}px`,
-                                                    }}
-                                                >
-                                                    <Command>
-                                                        <CommandInput placeholder="Search tasks..." />
-                                                        <CommandEmpty>No tasks found.</CommandEmpty>
-                                                        <CommandGroup heading="Your Tasks">
-                                                            {tasks.map((task) => (
-                                                                <CommandItem
-                                                                    key={task.id}
-                                                                    onSelect={() => handleTaskSelect(task)}
-                                                                    className="flex items-center gap-2 cursor-pointer"
-                                                                >
-                                                                    <div className={`w-2 h-2 rounded-full ${task.status === 'completed' ? 'bg-green-500' :
-                                                                        task.status === 'running' ? 'bg-blue-500' :
-                                                                            'bg-amber-500'
-                                                                        }`} />
-                                                                    <span>{task.title}</span>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-                                        <motion.div whileTap={{ scale: 0.95 }}>
-                                            <Button
-                                                onClick={handleSubmit}
-                                                disabled={isProcessing || !input.trim()}
-                                                className="self-end h-[60px] px-5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
-                                            >
-                                                {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                                            </Button>
-                                        </motion.div>
-                                    </div>
-                                    <div className="mt-2 text-xs text-gray-400 text-center">
-                                        Press Enter to send, Shift+Enter for new line, @ to mention a task
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
+                            <TabsContent value="help" className="m-0 p-6 overflow-auto">
+                                <HelpContent setExamplePrompt={setExamplePrompt} />
+                            </TabsContent>
+                        </Tabs>
                     </Card>
                 </motion.div>
             </div>
         </div>
     )
 }
-
-// Add function to handle AI actions
-// const handleAIActions = async (actions: unknown, mentionedTasks: Task[]) => {
-//     for (const action of actions) {
-//         switch (action.type) {
-//             case 'ADD_SUBTASK':
-//                 // await handleAddSubtask(action.taskId, action.subtask);
-//                 break;
-//             case 'DELETE_TASK':
-//                 // await handleDeleteTask(action.taskId);
-//                 break;
-//             case 'MERGE_TASKS':
-//                 // await handleMergeTasks(action.taskIds, action.newTask);
-//                 break;
-//             case 'MOVE_SUBTASK':
-//                 // await handleMoveSubtask(action.fromTaskId, action.toTaskId, action.subtaskId);
-//                 break;
-//             case 'UPDATE_TASK':
-//                 // await handleUpdateTask(action.taskId, action.updates);
-//                 break;
-//         }
-//     }
-// }
-
-// Implement the action handlers
-// const handleMergeTasks = async (taskIds: string[], newTask: Task) => {
-//     try {
-//         const mergedSubtasks = taskIds
-//             .map(id => tasks.find(t => t.id === id))
-//             .flatMap(task => task?.subtasks || []);
-
-//         const mergedTask = {
-//             ...newTask,
-//             subtasks: mergedSubtasks,
-//         };
-
-//         // Delete old tasks and add merged task
-//         const updatedTasks = tasks
-//             .filter(task => !taskIds.includes(task.id))
-//             .concat(mergedTask);
-
-//         if (user) {
-//             await setDoc(doc(db, 'tasks', user.uid), {
-//                 taskList: updatedTasks
-//             });
-//             setTasks(updatedTasks);
-//             toast.success("Tasks merged successfully");
-//         }
-//     } catch (error) {
-//         toast.error("Failed to merge tasks");
-//     }
-// }
-
-// const handleMoveSubtask = async (fromTaskId: string, toTaskId: string, subtaskId: string) => {
-//     try {
-//         const updatedTasks = tasks.map(task => {
-//             if (task.id === fromTaskId) {
-//                 return {
-//                     ...task,
-//                     subtasks: task.subtasks.filter(st => st.id !== subtaskId)
-//                 };
-//             }
-//             if (task.id === toTaskId) {
-//                 const subtask = tasks
-//                     .find(t => t.id === fromTaskId)
-//                     ?.subtasks.find(st => st.id === subtaskId);
-//                 if (subtask) {
-//                     return {
-//                         ...task,
-//                         subtasks: [...task.subtasks, subtask]
-//                     };
-//                 }
-//             }
-//             return task;
-//         });
-
-//         if (user) {
-//             await setDoc(doc(db, 'tasks', user.uid), {
-//                 taskList: updatedTasks
-//             });
-//             setTasks(updatedTasks);
-//             toast.success("Subtask moved successfully");
-//         }
-//     } catch (error) {
-//         toast.error("Failed to move subtask");
-//     }
-// }
-
-// const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-//     try {
-//         const updatedTasks = tasks.map(task => 
-//             task.id === taskId ? { ...task, ...updates } : task
-//         );
-
-//         if (user) {
-//             await setDoc(doc(db, 'tasks', user.uid), {
-//                 taskList: updatedTasks
-//             });
-//             setTasks(updatedTasks);
-//             toast.success("Task updated successfully");
-//         }
-//     } catch (error) {
-//         toast.error("Failed to update task");
-//     }
-// }

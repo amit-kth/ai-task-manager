@@ -1,12 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { apiKey } from "./variables";
+import { GoogleGenerativeAI } from "@google/generative-ai"
+import { apiKey } from "./variables"
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(apiKey)
 
 export const geminiModel = {
   generateContent: async (userInput: string) => {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
 
       const prompt = `
       INSTRUCTIONS:
@@ -23,43 +23,44 @@ export const geminiModel = {
          - Each main task must maintain its own set of subtasks
          - Never merge different main tasks into one
 
-      3. Input Format Examples:
-         Project A
-         1. subtask a1
-         2. subtask a2
+      3. Task Context Understanding:
+         - Understand when the user is referring to existing tasks (mentioned with @ symbol)
+         - Recognize when the user wants to modify existing tasks vs. create new ones
+         - Identify task relationships and dependencies
 
-         Project B
-         1. subtask b1
-         2. subtask b2
+      4. Natural Language Processing:
+         - Extract tasks from conversational language
+         - Identify deadlines, priorities, and status information
+         - Convert vague descriptions into actionable tasks
 
       OUTPUT FORMAT:
       {
         "isTask": true,
         "tasks": [
           {
-            "title": "Project A",
+            "id": "unique-id-1",
+            "title": "Task Title",
             "status": "pending",
             "subtasks": [
               {
-                "id": "unique-id-1",
-                "title": "subtask a1",
-                "completed": false
-              }
-            ]
-          },
-          {
-            "title": "Project B",
-            "status": "pending",
-            "subtasks": [
-              {
-                "id": "unique-id-2",
-                "title": "subtask b1",
+                "id": "subtask-id-1",
+                "title": "Subtask Description",
                 "completed": false
               }
             ]
           }
         ],
-        "message": "Confirmation message"
+        "message": "Confirmation message",
+        "actions": [
+          {
+            "type": "ADD_SUBTASK",
+            "taskId": "existing-task-id",
+            "subtask": {
+              "title": "New Subtask",
+              "completed": false
+            }
+          }
+        ]
       }
 
       IMPORTANT:
@@ -67,9 +68,13 @@ export const geminiModel = {
       - Never combine different projects into one task
       - Generate unique IDs for each subtask
       - Maintain the hierarchy of the original input
-      - Always format the task and subtasks in professional english, correct grammer and correct spellings.
+      - Always format the task and subtasks in professional English, with correct grammar and spelling
+      - When tasks are mentioned with @ symbol, reference them correctly in your response
+      - Provide clear, actionable tasks even from vague descriptions
+      - Break down complex tasks into manageable subtasks
+      - Suggest appropriate task status based on context (pending, running, completed)
 
-    For normal conversation, return only this JSON:
+      For normal conversation, return only this JSON:
       {
         "isTask": false,
         "message": "Your helpful conversational response here"
@@ -79,32 +84,44 @@ export const geminiModel = {
       ${userInput}
 
       RESPONSE (VALID JSON ONLY):
-      `;
+      `
 
       // Generate content
-      const result = await model.generateContent(prompt);
-      let responseText = result.response.text();
+      const result = await model.generateContent(prompt)
+      let responseText = result.response.text()
 
       // Clean the response text by removing markdown code block syntax
-      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      responseText = responseText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim()
 
-      const parsedResponse = JSON.parse(responseText);
+      try {
+        const parsedResponse = JSON.parse(responseText)
 
-      console.log('Cleaned Response:', parsedResponse);
+        console.log("Cleaned Response:", parsedResponse)
 
-      return {
-        isTask: parsedResponse.isTask,
-        message: parsedResponse.message,
-        task: parsedResponse.isTask ? parsedResponse.tasks : [],
-      };
-    }
-    catch (error) {
-      console.error("Error generating content:", error);
+        return {
+          isTask: parsedResponse.isTask,
+          message: parsedResponse.message,
+          task: parsedResponse.isTask ? parsedResponse.tasks : [],
+          actions: parsedResponse.actions || [],
+        }
+      } catch (error) {
+        console.error("Error parsing JSON response:", error)
+        return {
+          isTask: false,
+          message: "I encountered an error processing your request. Please try rephrasing your input.",
+          task: [],
+        }
+      }
+    } catch (error) {
+      console.error("Error generating content:", error)
       return {
         isTask: false,
         message: "I'm sorry, I encountered an error processing your request. Please try again.",
-        tasks: [],
-      };
+        task: [],
+      }
     }
-  }
-};
+  },
+}

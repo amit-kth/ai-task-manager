@@ -1,29 +1,42 @@
 export interface SubTask {
-    id: string;
-    title: string;
-    completed: boolean;
+  id: string
+  title: string
+  completed: boolean
 }
 
 export interface Task {
-    id: string
-    title: string;
-    status: "pending" | "running" | "completed";
-    subtasks: SubTask[];
+  id: string
+  title: string
+  status: "pending" | "running" | "completed"
+  subtasks: SubTask[]
+  createdAt?: string // ISO string timestamp
 }
 
-// response that is coming from the ai model, here task can be empty array.
 export interface TaskResponse {
-    isTask: boolean;
-    task: Task[],
-    actions: unknown;
-    message: string;
+  isTask: boolean
+  message: string
+  task: Task[]
+  actions?: string[]
 }
 
 export interface ChatMessage {
-    role: "user" | "assistant";
-    content: string;
-    parsedResponse: TaskResponse | string;
-    mentionedTasks?: Task[];
+  role: "user" | "assistant"
+  content: string
+  parsedResponse: string | TaskResponse
+  mentionedTasks?: Task[]
+  timestamp?: string
 }
 
-
+export type AIAction = 
+    | {
+        type: "ADD_SUBTASK"
+        taskId: string
+        subtask: {
+            title: string
+        }
+    }
+    | {
+        type: "UPDATE_TASK"
+        taskId: string
+        updates: Task
+    }

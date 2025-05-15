@@ -11,16 +11,28 @@ import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { v4 as uuidv4 } from "uuid"
 import { toast } from "sonner"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface TaskItemProps {
   task: Task
   onStatusChange: (taskId: string, newStatus: "pending" | "running" | "completed") => void
   onSubtaskToggle: (taskId: string, subtaskId: string) => void
   onAddSubtask?: (taskId: string, subtask: SubTask) => void
-  onDeleteSubtask: (taskId: string, subtaskId: string) => void;
-  onDeleteTask: (taskId: string) => void;
+  onDeleteSubtask: (taskId: string, subtaskId: string) => void
+  onDeleteTask: (taskId: string) => void
   statusColor: string
   statusBg: string
   index: number
@@ -30,7 +42,7 @@ interface TaskItemProps {
   isFirst?: boolean
   isLast?: boolean
 }
-// In the component props, add onDeleteTask
+
 export default function TaskItem({
   task,
   onStatusChange,
@@ -58,7 +70,7 @@ export default function TaskItem({
   const handleAddSubtask = () => {
     if (!newSubtaskTitle.trim()) {
       toast.error("Subtask title required", {
-        description: "Please enter a title for your subtask"
+        description: "Please enter a title for your subtask",
       })
       return
     }
@@ -74,7 +86,7 @@ export default function TaskItem({
     setIsAddingSubtask(false)
 
     toast.success("Subtask added", {
-      description: "Your subtask has been added successfully"
+      description: "Your subtask has been added successfully",
     })
   }
 
@@ -95,18 +107,24 @@ export default function TaskItem({
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-amber-100 text-amber-800"
-      case "running":
-        return "bg-blue-100 text-blue-800"
-      case "completed":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case "pending":
+  //       return "bg-amber-100 text-amber-800"
+  //     case "running":
+  //       return "bg-blue-100 text-blue-800"
+  //     case "completed":
+  //       return "bg-green-100 text-green-800"
+  //     default:
+  //       return "bg-gray-100 text-gray-800"
+  //   }
+  // }
+
+  // Get time since task creation (mock data for now)
+  // const getTimeAgo = () => {
+  //   return ""
+  //   return "2 days ago"
+  // }
 
   return (
     <motion.div
@@ -114,15 +132,30 @@ export default function TaskItem({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.2, delay: index * 0.05 }}
-      className={`rounded-lg overflow-hidden border shadow-sm hover:shadow transition-all ${expanded ? "border-gray-300" : "border-gray-200"}`}
+      className={`rounded-lg overflow-hidden border shadow-sm hover:shadow transition-all ${expanded ? "border-gray-300" : "border-gray-200"
+        }`}
     >
       <div className={`flex flex-col sm:flex-row items-start sm:items-center p-3 sm:p-4 ${statusBg}`}>
         <div className="flex-1 w-full sm:w-auto">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h3 className="font-medium text-gray-800 text-sm sm:text-base capitalize">{task.title}</h3>
-            <div className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(task.status)}`}>
+            <Badge
+              variant="outline"
+              className={`${task.status === "completed"
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : task.status === "running"
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+            >
               {getStatusLabel(task.status)}
-            </div>
+            </Badge>
+
+            {/* Task metadata */}
+            {/* <div className="flex items-center gap-1 text-xs text-gray-500 ml-auto sm:ml-0">
+              <Clock className="h-3 w-3" />
+              <span>{getTimeAgo()}</span>
+            </div> */}
           </div>
 
           <div className="mt-2 w-full">
@@ -132,63 +165,92 @@ export default function TaskItem({
                 {completedSubtasks} of {totalSubtasks} subtasks
               </span>
             </div>
-            <Progress value={progress} className="h-1.5 bg-white" indicatorClassName={statusColor.replace("bg-", "bg-")} />
+            <Progress
+              value={progress}
+              className="h-1.5 bg-white"
+              indicatorClassName={statusColor.replace("bg-", "bg-")}
+            />
           </div>
         </div>
 
         <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4 w-full sm:w-auto">
           {!disablePriority && (
             <div className="flex sm:flex-col gap-1 mr-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onMoveUp}
-                disabled={isFirst}
-                className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30"
-              >
-                <ArrowUp className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onMoveDown}
-                disabled={isLast}
-                className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30"
-              >
-                <ArrowDown className="h-3 w-3" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onMoveUp}
+                      disabled={isFirst}
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Move task up</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onMoveDown}
+                      disabled={isLast}
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Move task down</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
 
-          {/* confirmation alert dialog */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Task</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Deleting <b>{task.title}</b> will also delete all of its subtasks. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDeleteTask(task.id)}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {/* Delete task button with confirmation */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Deleting <b>{task.title}</b> will also delete all of its subtasks. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDeleteTask(task.id)} className="bg-red-600 hover:bg-red-700">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete task</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Select
             value={task.status}
@@ -221,37 +283,52 @@ export default function TaskItem({
           >
             <div className="p-3 sm:p-4 pt-0 border-t">
               <div className="space-y-1 pt-3">
-                {task.subtasks.map((subtask) => (
-                  <motion.div
-                    key={subtask.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors"
-                  >
-                    <Checkbox
-                      id={`${task.id}-${subtask.id}`}
-                      checked={subtask.completed}
-                      onCheckedChange={() => onSubtaskToggle(task.id, subtask.id)}
-                      className={`${subtask.completed ? "bg-green-500 border-green-500" : ""}`}
-                    />
-                    <label
-                      htmlFor={`${task.id}-${subtask.id}`}
-                      className={`flex-1 capitalize cursor-pointer text-xs sm:text-sm ${subtask.completed ? "line-through text-gray-400" : "text-gray-700"
-                        }`}
+                {task.subtasks.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-gray-500">
+                    No subtasks yet. {task.status !== "completed" && "Add one below."}
+                  </div>
+                ) : (
+                  task.subtasks.map((subtask) => (
+                    <motion.div
+                      key={subtask.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors"
                     >
-                      {subtask.title}
-                    </label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
-                      onClick={() => onDeleteSubtask(task.id, subtask.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </motion.div>
-                ))}
+                      <Checkbox
+                        id={`${task.id}-${subtask.id}`}
+                        checked={subtask.completed}
+                        onCheckedChange={() => onSubtaskToggle(task.id, subtask.id)}
+                        className={`${subtask.completed ? "bg-green-500 border-green-500" : ""}`}
+                      />
+                      <label
+                        htmlFor={`${task.id}-${subtask.id}`}
+                        className={`flex-1 capitalize cursor-pointer text-xs sm:text-sm ${subtask.completed ? "line-through text-gray-400" : "text-gray-700"
+                          }`}
+                      >
+                        {subtask.title}
+                      </label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="ml-auto h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                              onClick={() => onDeleteSubtask(task.id, subtask.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-gray-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Delete subtask</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </motion.div>
+                  ))
+                )}
 
                 {/* Add new subtask section - only for pending and running tasks */}
                 {task.status !== "completed" && (
@@ -270,6 +347,13 @@ export default function TaskItem({
                               }
                             }}
                           />
+                          <Button
+                            size="sm"
+                            onClick={handleAddSubtask}
+                            className="h-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          >
+                            Add
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -303,4 +387,3 @@ export default function TaskItem({
     </motion.div>
   )
 }
-
