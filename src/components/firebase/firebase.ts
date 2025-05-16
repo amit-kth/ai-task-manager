@@ -1,6 +1,7 @@
 import { FirebaseError, initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { toast } from "sonner";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0MVZoN3dnvWBw3Trimv-Qw4oawVbMUBM",
@@ -22,6 +23,7 @@ export const signIn = async (email: string, password: string) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   } catch (error) {
+    console.log(error);
     throw error;
   }
 };
@@ -55,6 +57,10 @@ export const signInWithGoogle = async () => {
       })
     }
 
+    window.location.href = "/"
+    toast.success("Login successful", {
+      description: "Welcome back to Task Manager!",
+    })
     return result.user
   } catch (error) {
     if ((error as FirebaseError).code === "auth/popup-closed-by-user") {
