@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, } from "@/components/ui/card"
-import { HelpCircle } from "lucide-react"
+import { ArrowLeft, HelpCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { geminiModel } from "@/lib/gemini"
@@ -418,12 +418,15 @@ export default function AIAssistantPage() {
 
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="p-2">
                             <TabsList className="cursor-pointer">
+                                <Button className="cursor-pointer bg-transparent rounded-lg hover:bg-white mr-1 aspect-square" onClick={() => router.back()}>
+                                    <ArrowLeft className="text-primary"/>
+                                </Button>
                                 <TabsTrigger value="chat" className="cursor-pointer">Chat</TabsTrigger>
                                 <TabsTrigger value="help" className="cursor-pointer">Help</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="chat" className="m-0 overflow-auto">
-                                <div className="flex flex-col h-[600px]">
+                                <div className="flex flex-col h-[89vh]">
                                     <ChatContainer
                                         chatHistory={chatHistory}
                                         isTyping={isTyping}

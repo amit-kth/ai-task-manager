@@ -65,8 +65,9 @@ export default function MonthlyReportPage() {
     suggestions: "",
   })
 
-  // Get current month and year
+  // Get previous month and year
   const currentDate = new Date()
+  currentDate.setMonth(currentDate.getMonth() - 1) // Go back one month
   const monthYear = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(currentDate)
 
   // Use SWR for data fetching with caching

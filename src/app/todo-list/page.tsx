@@ -67,17 +67,17 @@ export default function TodoListPage() {
   //   setSelectedTasks((prev) => (prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]))
   // }
 
-  const handleSelectAll = () => {
-    const allSubtaskIds = tasks.flatMap(task =>
-      task.subtasks.map(subtask => subtask.id)
-    )
+  // const handleSelectAll = () => {
+  //   const allSubtaskIds = tasks.flatMap(task =>
+  //     task.subtasks.map(subtask => subtask.id)
+  //   )
 
-    if (selectedSubtasks.length === allSubtaskIds.length) {
-      setSelectedSubtasks([])
-    } else {
-      setSelectedSubtasks(allSubtaskIds)
-    }
-  }
+  //   if (selectedSubtasks.length === allSubtaskIds.length) {
+  //     setSelectedSubtasks([])
+  //   } else {
+  //     setSelectedSubtasks(allSubtaskIds)
+  //   }
+  // }
 
 
   const handleSubtaskSelect = (subtaskId: string) => {
@@ -227,7 +227,7 @@ export default function TodoListPage() {
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="w-full shadow-md border-gray-100 overflow-hidden">
+          <Card className="w-full shadow-md border-gray-100 overflow-hidden p-0">
             <div className="h-2 bg-gradient-to-r from-blue-600 to-purple-600"></div>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-2xl text-gray-800">Create Todo List</CardTitle>
@@ -265,7 +265,7 @@ export default function TodoListPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-2 pb-2 border-b border-gray-200">
+                  {/* <div className="flex items-center space-x-2 pb-2 border-b border-gray-200">
                     <Checkbox
                       id="selectAll"
                       checked={selectedSubtasks.length === tasks.flatMap(t => t.subtasks).length}
@@ -282,7 +282,7 @@ export default function TodoListPage() {
                     <div className="ml-auto text-sm text-gray-500">
                       {selectedSubtasks.length} of {tasks.flatMap(t => t.subtasks).length} subtasks selected
                     </div>
-                  </div>
+                  </div> */}
 
                   <AnimatePresence>
                     {/* Show running tasks first */}

@@ -160,19 +160,33 @@ export default function Home() {
   }
 
   const handleDeleteSubtask = async (taskId: string, subtaskId: string) => {
-    const updatedTasks = tasks.map((task: Task) => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          subtasks: task.subtasks.filter((subtask) => subtask.id !== subtaskId),
+    // First, check if this is the last subtask of the task
+    const task = tasks.find((t: Task) => t.id === taskId)
+    const isLastSubtask = task?.subtasks.length === 1
+
+    if (isLastSubtask) {
+      // If it's the last subtask, remove the entire task
+      const updatedTasks = tasks.filter((task: Task) => task.id !== taskId)
+      await updateFirestore(updatedTasks)
+      toast.success("Task deleted", {
+        description: "The task has been removed as it had no remaining subtasks"
+      })
+    } else {
+      // Otherwise, just remove the subtask
+      const updatedTasks = tasks.map((task: Task) => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            subtasks: task.subtasks.filter((subtask) => subtask.id !== subtaskId),
+          }
         }
-      }
-      return task
-    })
-    await updateFirestore(updatedTasks)
-    toast.success("Subtask deleted", {
-      description: "The subtask has been removed successfully",
-    })
+        return task
+      })
+      await updateFirestore(updatedTasks)
+      toast.success("Subtask deleted", {
+        description: "The subtask has been removed successfully"
+      })
+    }
   }
 
   const handleDeleteTask = async (taskId: string) => {
